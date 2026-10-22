@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分治 · Divide &amp; Conquer</title>
+<style>
+:root{
+  --paper:#e9ece4;
+  --paper-deep:#dfe3d8;
+  --ink:#11130f;
+  --muted:#5f6458;
+  --hair:#b8bead;
+  --blue:#2338c9;
+  --blue-mid:#6877d8;
+  --blue-soft:#d9ddf5;
+  --red:#d63d25;
+  --red-soft:#f4d9d1;
+  --white:#f6f7f1;
+  --max:1200px;
+  --pad:clamp(20px,5vw,64px);
+  --font-display:"Songti SC","SimSun","STSong","Noto Serif SC",serif;
+  --font-body:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --font-mono:"Cascadia Mono","Consolas","SFMono-Regular","Menlo",monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:74px}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:15px;
+  line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:
+    linear-gradient(to right,rgba(17,19,15,.035) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(17,19,15,.035) 1px,transparent 1px);
+  background-size:72px 72px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 85%);
+}
+::selection{background:var(--blue);color:var(--white)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+h1,h2,h3,p,ul,ol,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+svg{display:block}
+:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+
+.wrap{width:min(calc(100% - 2 * var(--pad)),var(--max));margin-inline:auto}
+.mono-label{
+  font-family:var(--font-mono);font-size:11px;font-weight:500;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--muted);line-height:1.5;
+}
+.math{font-family:Georgia,"Times New Roman",var(--font-display);font-style:italic;letter-spacing:.01em}
+.tabular{font-variant-numeric:tabular-nums}
+
+.progress{position:fixed;top:0;left:0;height:2px;width:100%;z-index:120;pointer-events:none;background:transparent}
+.progress span{display:block;height:100%;width:100%;background:var(--red);transform:scaleX(var(--p,0));transform-origin:left center}
+
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:color-mix(in srgb,var(--paper) 90%,transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--hair);
+}
+.topbar-inner{
+  width:min(calc(100% - 2 * var(--pad)),var(--max));margin-inline:auto;
+  display:flex;align-items:center;justify-content:space-between;gap:28px;
+  min-height:58px;
+}
+.brand{display:flex;align-items:baseline;gap:12px;white-space:nowrap}
+.brand b{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:.08em}
+.brand span{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--muted)}
+.nav{display:flex;gap:26px;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;color:var(--muted);
+  white-space:nowrap;padding:6px 0;border-bottom:1px solid transparent;transition:color .2s,border-color .2s;
+}
+.nav a:hover{color:var(--ink);border-color:var(--ink)}
+
+.hero{position:relative;padding:clamp(40px,7vh,84px) 0 0;overflow:hidden}
+.hero-top{
+  display:flex;justify-content:space-between;align-items:center;gap:20px;
+  border-top:1px solid var(--ink);padding-top:12px;
+}
+.hero-title-block{position:relative;margin:clamp(28px,6vh,64px) 0 clamp(18px,3vh,30px)}
+.hero-title{
+  font-family:var(--font-display);font-weight:600;
+  font-size:clamp(7rem,23vw,19rem);line-height:.82;letter-spacing:-.02em;
+  display:flex;align-items:center;justify-content:center;gap:.05em;
+  position:relative;user-select:none;
+}
+.hero-title .char{
+  display:block;position:relative;z-index:2;
+  transition:transform 1.3s cubic-bezier(.22,.75,.22,1);
+}
+.hero-title .char.c2{color:var(--blue)}
+.hero-title .cut{
+  position:absolute;z-index:1;top:-9%;bottom:-13%;left:50%;width:1px;
+  background:repeating-linear-gradient(to bottom,var(--red) 0 7px,transparent 7px 14px);
+  transform:translateX(-50%) scaleY(0);transform-origin:top center;
+  transition:transform 1.15s .25s cubic-bezier(.22,.75,.22,1);
+}
+.hero-title .cut::before,.hero-title .cut::after{
+  content:"";position:absolute;left:50%;width:7px;height:7px;border:1px solid var(--red);
+  transform:translateX(-50%) rotate(45deg);background:var(--paper);
+}
+.hero-title .cut::before{top:-4px}
+.hero-title .cut::after{bottom:-4px}
+body.ready .hero-title .char.c1{transform:translateX(-.075em)}
+body.ready .hero-title .char.c2{transform:translateX(.075em)}
+body.ready .hero-title .cut{transform:translateX(-50%) scaleY(1)}
+@media (hover:hover){
+  .hero-title:hover .c1{transform:translateX(-.11em)}
+  .hero-title:hover .c2{transform:translateX(.11em)}
+}
+.split-annot{
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--muted);
+  border-bottom:1px solid var(--hair);padding:0 2px 10px;
+}
+.split-annot span:first-child{color:var(--blue)}
+.hero-sub{
+  max-width:900px;margin:clamp(26px,4vh,44px) auto 0;text-align:center;
+  font-size:clamp(16px,1.75vw,20px);line-height:1.9;letter-spacing:.01em;
+  text-wrap:balance;
+}
+.hero-sub b{font-weight:600;box-shadow:inset 0 -.45em 0 var(--blue-soft)}
+.hero-meta{
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:24px;
+  margin-top:clamp(28px,4vh,46px);padding-top:18px;border-top:1px solid var(--hair);
+}
+.hero-meta .math{font-size:clamp(17px,2vw,21px);margin-top:6px}
+.hero-meta .meta-note{font-size:12px;line-height:1.8;color:var(--muted);margin-top:6px;max-width:280px}
+.hero-meta .meta-right{justify-self:end;text-align:right}
+.hero-meta .meta-right .meta-note{margin-left:auto}
+.hero-three{display:flex;gap:14px;align-items:center;padding-bottom:4px}
+.hero-three span{
+  font-family:var(--font-display);font-size:clamp(22px,3vw,30px);
+  width:1.9em;height:1.9em;display:grid;place-items:center;
+  border:1px solid var(--ink);border-radius:50%;
+}
+.hero-three i{width:16px;height:1px;background:var(--hair);display:block}
+.hero-figure{
+  margin-top:clamp(36px,6vh,64px);border-top:1px solid var(--ink);
+  position:relative;padding-top:14px;
+}
+.hero-figure-head{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:4px}
+.hero-tree{width:100%;height:auto}
+.hero-tree .guide{stroke:var(--hair);stroke-width:1;stroke-dasharray:2 6;opacity:.55}
+.hero-tree .edge{
+  fill:none;stroke:var(--blue);stroke-width:1;opacity:.55;
+  stroke-dasharray:1;stroke-dashoffset:1;
+  transition:stroke-dashoffset 1.5s cubic-bezier(.3,.7,.3,1);
+}
+body.ready .hero-tree .edge{stroke-dashoffset:0}
+.hero-tree .edge.e2{transition-delay:.18s}
+.hero-tree .edge.e3{transition-delay:.36s}
+.hero-tree .node{fill:var(--paper);stroke:var(--blue);stroke-width:1.2;opacity:0;transition:opacity .7s ease}
+.hero-tree .node.n1{transition-delay:.15s}
+.hero-tree .node.n2{transition-delay:.5s}
+.hero-tree .node.n3{transition-delay:.85s}
+body.ready .hero-tree .node{opacity:1}
+.hero-tree .leaf{fill:var(--blue);opacity:0;transition:opacity .8s .95s ease}
+body.ready .hero-tree .leaf{opacity:1}
+.hero-tree text{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;fill:var(--muted)}
+.hero-tree text.tick{fill:var(--red);font-size:9px}
+.hero-figure figcaption{
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  border-top:1px solid var(--hair);padding-top:10px;margin-top:-6px;
+}
+.scroll-cue{
+  display:flex;justify-content:center;padding:34px 0 26px;
+}
+.scroll-cue span{font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;color:var(--muted);position:relative;padding-bottom:26px}
+.scroll-cue span::after{
+  content:"";position:absolute;left:50%;bottom:0;width:1px;height:20px;
+  background:linear-gradient(to bottom,var(--muted),transparent);
+  animation:cue 2.4s ease-in-out infinite;
+}
+@keyframes cue{0%,100%{transform:scaleY(.4);transform-origin:top;opacity:.4}50%{transform:scaleY(1);opacity:1}}
+
+.section{padding:clamp(64px,9vw,110px) 0 0}
+.sec-head{
+  display:grid;grid-template-columns:76px minmax(0,1fr) minmax(260px,360px);
+  gap:clamp(16px,3vw,36px);align-items:end;
+  border-top:1px solid var(--ink);padding-top:18px;margin-bottom:clamp(30px,5vw,48px);
+}
+.sec-no{
+  font-family:var(--font-display);font-size:clamp(30px,4vw,42px);line-height:1;
+  color:var(--blue);font-weight:600;
+}
+.sec-head h2{
+  font-family:var(--font-display);font-weight:600;letter-spacing:.015em;
+  font-size:clamp(2.1rem,4.6vw,3.5rem);line-height:1.12;margin-top:6px;
+  text-wrap:balance;
+}
+.sec-lede{font-size:13.5px;line-height:1.9;color:var(--muted);padding-bottom:5px;max-width:360px}
+
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-left:1px solid var(--hair);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.step{padding:clamp(18px,2.4vw,28px);border-right:1px solid var(--hair);display:flex;flex-direction:column;min-width:0;background:color-mix(in srgb,var(--white) 30%,transparent)}
+.step-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.step-no{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--muted)}
+.step h3{font-family:var(--font-display);font-size:clamp(1.7rem,3vw,2.2rem);font-weight:600;line-height:1.2;margin-top:20px}
+.step h3 em{font-family:var(--font-mono);font-style:normal;font-size:10px;letter-spacing:.16em;color:var(--blue);margin-left:10px;vertical-align:middle}
+.step p{font-size:13.5px;line-height:1.9;color:var(--muted);margin-top:12px}
+.step svg{width:100%;height:104px;margin:16px 0 2px}
+.step .sg{stroke:var(--blue);fill:none;stroke-width:1;opacity:.65}
+.step .sg-red{stroke:var(--red);fill:none;stroke-width:1.4}
+.step .sf{fill:var(--blue-soft)}
+.step .sf-ink{fill:var(--ink)}
+.step .sf-red{fill:var(--red-soft);stroke:var(--red);stroke-width:1}
+.step .sl{stroke:var(--hair);stroke-width:1;stroke-dasharray:2 5}
+.step .lbl{font-family:var(--font-mono);font-size:9px;fill:var(--muted);letter-spacing:.08em}
+.is-in .anim-box{transform-box:fill-box;transform-origin:center}
+.jsv .reveal{opacity:0;transform:translateY(16px);transition:opacity .65s ease,transform .65s ease}
+.jsv .reveal.is-in{opacity:1;transform:none}
+
+.bridge{
+  display:flex;gap:18px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
+  margin-top:18px;padding:16px 0 0;
+}
+.bridge p{font-size:13px;color:var(--muted);line-height:1.9;max-width:640px}
+.bridge p b{color:var(--ink);font-weight:600}
+.bridge .mono-label{color:var(--red)}
+
+.example-grid{display:grid;grid-template-columns:290px minmax(0,1fr);gap:clamp(24px,4vw,52px);align-items:start}
+.example-grid > *{min-width:0}
+.notes{position:sticky;top:88px;min-width:0}
+.notes-title{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;color:var(--red);text-transform:uppercase;margin-bottom:8px}
+.notes h3{font-family:var(--font-display);font-size:24px;font-weight:600;line-height:1.4;margin-bottom:16px}
+.note-list li{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;border-top:1px solid var(--hair);padding:12px 0}
+.note-list .k{font-family:var(--font-mono);font-size:11px;color:var(--blue);padding-top:3px;letter-spacing:.06em}
+.note-list .v{font-size:13px;line-height:1.85;color:var(--muted)}
+.note-list .v b{color:var(--ink);font-weight:600}
+.recur{margin-top:20px;padding:14px 16px;background:var(--ink);color:var(--paper)}
+.recur .mono-label{color:#aeb4a7;font-size:9px}
+.recur p{font-family:var(--font-mono);font-size:12px;line-height:1.8;margin-top:4px;letter-spacing:.01em;color:var(--white)}
+.recur p em{color:#ffb3a4;font-style:normal}
+.note-foot{font-size:11.5px;color:var(--muted);line-height:1.8;margin-top:14px;border-left:2px solid var(--hair);padding-left:10px}
+
+.plate{position:relative;border:1px solid var(--ink);background:color-mix(in srgb,var(--white) 58%,transparent);padding:clamp(14px,2.2vw,22px);min-width:0}
+.plate::before,.plate::after{font-family:var(--font-mono);color:var(--muted);font-size:12px;position:absolute;line-height:1;pointer-events:none}
+.plate::before{content:"+";top:-7px;left:-6px;background:var(--paper);padding:0 2px}
+.plate::after{content:"+";bottom:-7px;right:-6px;background:var(--paper);padding:0 2px}
+.demo-bar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--hair);padding-bottom:12px;margin-bottom:16px}
+.demo-tag{display:flex;align-items:center;gap:9px}
+.demo-tag i{width:6px;height:6px;background:var(--blue);display:block}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.btn{
+  appearance:none;border:1px solid var(--ink);background:transparent;
+  min-height:40px;padding:8px 14px;cursor:pointer;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:background .18s ease,color .18s ease,border-color .18s ease;
+}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-primary:hover{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.status{
+  display:block;min-height:34px;
+  border-top:1px solid var(--hair);margin-top:16px;padding-top:12px;
+  font-family:var(--font-mono);font-size:11.5px;line-height:1.7;color:var(--muted);
+}
+.status::before{content:"";display:inline-block;width:5px;height:5px;background:var(--red);margin-right:8px;vertical-align:2px}
+.status b{color:var(--ink);font-weight:500}
+
+.tree-viewport{overflow-x:auto;overflow-y:hidden;padding:8px 0 4px;scrollbar-color:var(--hair) transparent;scrollbar-width:thin;max-width:100%;min-width:0}
+.tree-inner{position:relative;min-width:780px}
+.tree-connectors{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.tree-connectors path{fill:none;stroke:var(--hair);stroke-width:1;transition:opacity .5s ease}
+.tree-grid{position:relative;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));column-gap:6px;row-gap:32px}
+.tnode{
+  min-width:0;display:flex;align-items:center;justify-content:center;gap:3px;flex-wrap:nowrap;
+  min-height:32px;padding:5px 3px;border:1px solid var(--hair);
+  background:color-mix(in srgb,var(--paper) 70%,var(--white));
+  opacity:0;transform:translateY(7px);
+  transition:opacity .45s ease,transform .45s ease,background .3s,border-color .3s;
+}
+.tnode.is-on{opacity:1;transform:none}
+.tnode.is-merged{border-color:var(--blue);background:var(--blue-soft)}
+.tnode.is-answer{border-color:var(--red);background:var(--red-soft)}
+.chip{
+  font-family:var(--font-mono);font-size:11px;line-height:1;padding:4px 4px;min-width:21px;
+  text-align:center;background:var(--white);border:1px solid var(--hair);
+}
+.tnode.is-merged .chip{border-color:color-mix(in srgb,var(--blue) 40%,var(--hair));background:#eef0fb}
+.tnode.is-answer .chip{border-color:color-mix(in srgb,var(--red) 35%,var(--hair));background:#fbf0ec}
+.tnode.flash{animation:nodeflash .5s ease}
+@keyframes nodeflash{0%{box-shadow:inset 0 0 0 2px var(--red)}100%{box-shadow:inset 0 0 0 0 transparent}}
+.tree-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.tree-legend span{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em;color:var(--muted);display:flex;align-items:center;gap:6px}
+.tree-legend i{width:9px;height:9px;border:1px solid var(--hair);display:block;background:var(--paper)}
+.tree-legend i.m{background:var(--blue-soft);border-color:var(--blue)}
+.tree-legend i.a{background:var(--red-soft);border-color:var(--red)}
+.swipe-hint{display:none;font-family:var(--font-mono);font-size:9.5px;color:var(--muted);margin-top:6px}
+
+.array-stage{padding:12px 2px 2px}
+.zone-labels{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.zone-labels span{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.06em;color:var(--muted);border-top:1px solid var(--hair);padding-top:5px;transition:color .3s,border-color .3s}
+.zone-labels .zl{grid-column:1 / span 5}
+.zone-labels .zr{grid-column:6 / span 4}
+.zone-labels .is-hot{color:var(--blue);border-color:var(--blue)}
+.array-row{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px}
+.cell{
+  min-width:0;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:1px solid var(--hair);background:var(--paper);position:relative;
+  transition:background .3s ease,border-color .3s ease,transform .3s ease,box-shadow .3s ease;
+}
+.cell .num{font-family:var(--font-mono);font-size:17px;line-height:1.1;font-variant-numeric:tabular-nums}
+.cell .idx{font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:5px}
+.cell.zone-left{background:color-mix(in srgb,var(--blue-soft) 62%,var(--paper))}
+.cell.zone-right{background:color-mix(in srgb,var(--paper-deep) 80%,var(--paper))}
+.cell.is-scan{border-color:var(--blue);box-shadow:inset 0 -3px 0 var(--blue);transform:translateY(-3px)}
+.cell.is-suffix,.cell.is-prefix{background:color-mix(in srgb,var(--blue-soft) 58%,var(--paper));border-color:var(--blue-mid)}
+.cell.is-best{border-color:var(--blue);background:var(--blue-soft)}
+.cell.is-cross{border-color:var(--red);background:var(--red-soft);box-shadow:inset 0 -3px 0 var(--red)}
+.cell.is-faded{opacity:.38;filter:saturate(.4)}
+.meter{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-top:1px solid var(--hair);margin-top:18px;padding-top:14px}
+.meter-label{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.meter-value{font-family:var(--font-mono);font-size:28px;line-height:1;color:var(--blue);min-width:38px;font-variant-numeric:tabular-nums}
+.meter-value.is-red{color:var(--red)}
+.cmp{display:flex;gap:14px;margin-left:auto;flex-wrap:wrap}
+.cmp b{font-family:var(--font-mono);font-size:10px;font-weight:400;letter-spacing:.05em;color:var(--muted);opacity:.42;transition:opacity .25s,color .25s;white-space:nowrap}
+.cmp b.on{opacity:1;color:var(--ink)}
+.cmp b.on i{color:var(--red);font-style:normal}
+
+.board-stage{display:flex;gap:clamp(18px,3vw,30px);align-items:flex-start;flex-wrap:wrap}
+.board-wrap{flex:0 1 378px;min-width:min(100%,270px);max-width:100%}
+.board{
+  width:100%;aspect-ratio:1;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));
+  gap:2px;background:var(--hair);border:1px solid var(--ink);padding:2px;position:relative;
+}
+.bcell{background:var(--paper);position:relative;transition:background .3s ease}
+.bcell.special::after{
+  content:"";position:absolute;inset:26%;background:var(--red);
+  clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+  z-index:2;
+}
+.bcell.d0{background:var(--blue)}
+.bcell.d1{background:var(--blue-mid)}
+.bcell.d2{background:#b7c2ef}
+.bcell.just{animation:cflash .4s ease}
+@keyframes cflash{0%{box-shadow:inset 0 0 0 3px rgba(17,19,15,.9)}100%{box-shadow:inset 0 0 0 0 transparent}}
+.board-caption{display:flex;justify-content:space-between;gap:10px;margin-top:9px}
+.board-side{flex:1 1 180px;min-width:170px;padding-top:2px}
+.tile-count{font-family:var(--font-mono);font-size:clamp(36px,5vw,52px);line-height:1;color:var(--blue);font-variant-numeric:tabular-nums}
+.tile-count small{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.06em}
+.legend{margin-top:20px;border-top:1px solid var(--hair)}
+.legend li{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--hair) 65%,transparent);font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.legend i{width:13px;height:13px;flex:0 0 auto;display:block;border:1px solid transparent}
+.legend .s0{background:var(--blue)}
+.legend .s1{background:var(--blue-mid)}
+.legend .s2{background:#b7c2ef}
+.legend .sp{background:var(--paper);border-color:var(--hair);position:relative}
+.legend .sp::after{content:"";position:absolute;inset:4px;background:var(--red);border-radius:50%}
+.legend b{margin-left:auto;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums}
+.board-side p{font-size:12px;line-height:1.85;color:var(--muted);margin-top:16px;border-left:2px solid var(--red);padding-left:10px}
+
+.theorem-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(30px,5vw,64px);align-items:start}
+.master{margin-bottom:26px;padding-bottom:20px;border-bottom:1px solid var(--hair)}
+.master .math{font-size:clamp(24px,3.4vw,36px);line-height:1.5}
+.master p:last-child{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.8}
+.case{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;border-bottom:1px solid var(--hair);padding:16px 0}
+.case-no{font-family:var(--font-display);font-size:20px;line-height:1.4;color:var(--blue)}
+.case h3{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.04em;line-height:1.8}
+.case .cond{font-size:12px;color:var(--muted);margin-top:3px}
+.case .res{font-family:var(--font-mono);font-size:13px;margin-top:8px;color:var(--ink)}
+.case .res b{color:var(--red);font-weight:500}
+.cost-box{border:1px solid var(--ink);padding:clamp(16px,2.4vw,24px);background:color-mix(in srgb,var(--white) 45%,transparent)}
+.cost-box h3{font-family:var(--font-display);font-size:22px;font-weight:600;margin-bottom:4px}
+.cost-box > p{font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:18px}
+.cost-row{display:grid;grid-template-columns:74px minmax(0,1fr) 42px;gap:10px;align-items:center;margin-top:8px}
+.cost-row span{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);letter-spacing:.04em}
+.cost-row .bar{height:20px;background:var(--blue-soft);border-left:2px solid var(--blue);transform:scaleX(0);transform-origin:left;transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+.is-in .cost-row .bar{transform:scaleX(1)}
+.cost-row:nth-child(3) .bar{transition-delay:.08s}
+.cost-row:nth-child(4) .bar{transition-delay:.16s}
+.cost-row:nth-child(5) .bar{transition-delay:.24s}
+.cost-row:nth-child(6) .bar{transition-delay:.32s}
+.cost-row b{font-family:var(--font-mono);font-size:10px;font-weight:400;text-align:right;color:var(--muted)}
+.cost-more{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0 2px;letter-spacing:.3em}
+.cost-total{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--ink);margin-top:8px;padding-top:12px}
+.cost-total span{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em}
+.cost-total strong{font-family:var(--font-mono);font-size:20px;font-weight:500;color:var(--red)}
+.vs{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;border-top:1px solid var(--hair);padding-top:16px}
+.vs div{flex:1 1 180px}
+.vs h4{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--blue);font-weight:500;margin-bottom:4px}
+.vs p{font-size:12px;color:var(--muted);line-height:1.85}
+.apps{display:flex;flex-wrap:wrap;gap:8px;margin-top:30px}
+.apps span{font-family:var(--font-mono);font-size:10px;letter-spacing:.03em;border:1px solid var(--hair);padding:6px 10px;color:var(--muted);background:color-mix(in srgb,var(--white) 40%,transparent)}
+.apps span.hot{border-color:var(--blue);color:var(--blue)}
+
+.footer{margin-top:clamp(72px,10vw,120px);border-top:1px solid var(--ink);padding:28px 0 36px}
+.footer-top{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap}
+.footer-phrase{display:flex;align-items:center;gap:14px}
+.footer-phrase b{font-family:var(--font-display);font-size:clamp(28px,5vw,44px);font-weight:600;line-height:1}
+.footer-phrase i{width:22px;height:1px;background:var(--red);display:block}
+.footer p{font-size:11.5px;line-height:1.8;color:var(--muted);max-width:360px}
+.footer-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:26px;padding-top:12px;border-top:1px solid var(--hair)}
+.footer-bottom span{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;color:var(--muted)}
+
+@media (max-width:980px){
+  .sec-head{grid-template-columns:56px minmax(0,1fr);align-items:start}
+  .sec-lede{grid-column:2;max-width:560px;padding-bottom:0}
+  .example-grid{grid-template-columns:minmax(0,1fr)}
+  .example-grid .plate{order:1}
+  .example-grid .notes{order:2}
+  .notes{position:static;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:0 28px;align-items:start}
+  .notes-head{grid-column:1}
+  .note-list{grid-column:1}
+  .recur{grid-column:2;grid-row:1 / span 2;margin-top:0}
+  .note-foot{grid-column:2;grid-row:3;margin-top:10px}
+  .theorem-grid{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  body{font-size:14px}
+  .topbar-inner{min-height:52px;gap:14px}
+  .brand span{display:none}
+  .nav{gap:12px}
+  .nav a{font-size:11px}
+  .hero{padding-top:32px}
+  .hero-sub{text-align:left;margin-left:0;margin-right:0}
+  .hero-meta{grid-template-columns:1fr;gap:16px;align-items:start}
+  .hero-meta .meta-right{justify-self:start;text-align:left}
+  .hero-meta .meta-right .meta-note{margin-left:0}
+  .hero-three{order:3}
+  .steps{grid-template-columns:1fr;border-bottom:0}
+  .step{border-bottom:1px solid var(--hair);min-height:0}
+  .step svg{height:92px}
+  .sec-head{grid-template-columns:44px minmax(0,1fr);gap:12px}
+  .sec-head h2{font-size:clamp(1.9rem,8vw,2.7rem)}
+  .sec-lede{font-size:12.5px}
+  .bridge{gap:8px}
+  .notes{display:block}
+  .recur{margin-top:18px}
+  .note-foot{margin-top:14px}
+  .tree-inner{min-width:700px}
+  .swipe-hint{display:block}
+  .plate{padding:14px}
+  .demo-bar{align-items:flex-start}
+  .array-row,.zone-labels{gap:4px}
+  .cell{min-height:54px}
+  .cell .num{font-size:13px}
+  .cell .idx{display:none}
+  .meter{gap:10px}
+  .meter-value{font-size:24px}
+  .cmp{margin-left:0;gap:10px}
+  .board-wrap{flex-basis:100%;min-width:0}
+  .board-stage{display:block}
+  .board-side{display:flex;gap:24px;align-items:flex-start;margin-top:20px}
+  .legend{flex:1;margin-top:0}
+  .board-side p{flex:1;margin-top:8px}
+  .tile-count{font-size:36px}
+  .footer-phrase b{font-size:32px}
+}
+@media (max-width:460px){
+  .nav{gap:14px}
+  .topbar-inner{gap:10px}
+  .brand b{font-size:17px}
+  .hero-title{font-size:clamp(6.2rem,26vw,9rem)}
+  .split-annot{font-size:9px}
+  .hero-meta .math{font-size:16px}
+  .plate::before,.plate::after{display:none}
+  .controls{width:100%}
+  .btn{min-height:44px;padding:8px 12px}
+  .array-row,.zone-labels{gap:3px}
+  .cell{min-height:46px}
+  .cell .num{font-size:12px}
+  .tree-inner{min-width:660px}
+  .board-side{display:block}
+  .legend{margin-top:16px}
+  .board-side p{margin-top:14px}
+  .apps span{font-size:9px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;transition-delay:0ms !important}
+  .jsv .reveal{opacity:1;transform:none}
+  .cost-row .bar{transform:scaleX(1)}
+}
+</style>
+</head>
+<body>
+<div class="progress" aria-hidden="true"><span></span></div>
+<script>document.documentElement.classList.add("jsv");</script>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <b>分治</b><span>ALGORITHM PLATE / 01</span>
+    </div>
+    <nav class="nav" aria-label="页面导航">
+      <a href="#idea">思想</a>
+      <a href="#merge">归并排序</a>
+      <a href="#maxsub">最大子数组</a>
+      <a href="#board">棋盘覆盖</a>
+      <a href="#theorem">复杂度</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="hero" aria-labelledby="heroTitle">
+  <div class="wrap">
+    <div class="hero-top">
+      <span class="mono-label">Recursion, cut, recombine</span>
+      <span class="mono-label">Read time ≈ 12 min</span>
+    </div>
+
+    <div class="hero-title-block">
+      <h1 class="hero-title" id="heroTitle" aria-label="分治">
+        <span class="char c1" aria-hidden="true">分</span>
+        <span class="cut" aria-hidden="true"></span>
+        <span class="char c2" aria-hidden="true">治</span>
+      </h1>
+      <div class="split-annot" aria-hidden="true">
+        <span>← DECOMPOSE 分</span>
+        <span>CONQUER 递归 · COMBINE 合 →</span>
+      </div>
+    </div>
+
+    <p class="hero-sub">把一个难以直接解决的问题，切成若干<b>可以分别解决</b>的小问题；解完，再拼回去。</p>
+
+    <div class="hero-meta">
+      <div>
+        <span class="mono-label">Recurrence / 递推式</span>
+        <p class="math">T(n) = aT(n/b) + f(n)</p>
+        <p class="meta-note">a 个子问题，每个规模 n/b，合并代价 f(n)。</p>
+      </div>
+      <div class="hero-three" aria-label="分、治、合三个步骤">
+        <span>分</span><i></i><span>治</span><i></i><span>合</span>
+      </div>
+      <div class="meta-right">
+        <span class="mono-label">Complexity / 复杂度</span>
+        <p class="meta-note">由子问题的数量、规模与合并代价共同决定。先写递归式，再套主定理或画递归树。</p>
+      </div>
+    </div>
+
+    <figure class="hero-figure">
+      <div class="hero-figure-head">
+        <span class="mono-label">Fig. 0 — 递归树 / Recursion tree</span>
+        <span class="mono-label" style="color:var(--red)">每一层都是一次「分」</span>
+      </div>
+      <svg class="hero-tree" viewBox="0 0 1200 336" role="img" aria-label="一棵深度为三的递归树，根为 n，逐层分为 n/2、n/4，最终到达规模为 1 的叶子">
+        <line class="guide" x1="40" y1="30" x2="1160" y2="30"></line>
+        <line class="guide" x1="40" y1="130" x2="1160" y2="130"></line>
+        <line class="guide" x1="40" y1="230" x2="1160" y2="230"></line>
+        <line class="guide" x1="40" y1="310" x2="1160" y2="310"></line>
+        <path class="edge e1" pathLength="1" d="M600 34 V80 H330 V126"></path>
+        <path class="edge e1" pathLength="1" d="M600 34 V80 H870 V126"></path>
+        <path class="edge e2" pathLength="1" d="M330 134 V180 H180 V226"></path>
+        <path class="edge e2" pathLength="1" d="M330 134 V180 H480 V226"></path>
+        <path class="edge e2" pathLength="1" d="M870 134 V180 H720 V226"></path>
+        <path class="edge e2" pathLength="1" d="M870 134 V180 H1020 V226"></path>
+        <path class="edge e3" pathLength="1" d="M180 234 V272 H90 V310"></path>
+        <path class="edge e3" pathLength="1" d="M180 234 V272 H270 V310"></path>
+        <path class="edge e3" pathLength="1" d="M480 234 V272 H390 V310"></path>
+        <path class="edge e3" pathLength="1" d="M480 234 V272 H570 V310"></path>
+        <path class="edge e3" pathLength="1" d="M720 234 V272 H630 V310"></path>
+        <path class="edge e3" pathLength="1" d="M720 234 V272 H810 V310"></path>
+        <path class="edge e3" pathLength="1" d="M1020 234 V272 H930 V310"></path>
+        <path class="edge e3" pathLength="1" d="M1020 234 V272 H1110 V310"></path>
+        <circle class="node n1" cx="600" cy="30" r="4.5"></circle>
+        <circle class="node n2" cx="330" cy="130" r="4"></circle>
+        <circle class="node n2" cx="870" cy="130" r="4"></circle>
+        <circle class="node n3" cx="180" cy="230" r="3.5"></circle>
+        <circle class="node n3" cx="480" cy="230" r="3.5"></circle>
+        <circle class="node n3" cx="720" cy="230" r="3.5"></circle>
+        <circle class="node n3" cx="1020" cy="230" r="3.5"></circle>
+        <circle class="leaf" cx="90" cy="310" r="2.5"></circle>
+        <circle class="leaf" cx="270" cy="310" r="2.5"></circle>
+        <circle class="leaf" cx="390" cy="310" r="2.5"></circle>
+        <circle class="leaf" cx="570" cy="310" r="2.5"></circle>
+        <circle class="leaf" cx="630" cy="310" r="2.5"></circle>
+        <circle class="leaf" cx="810" cy="310" r="2.5"></circle>
+        <circle class="leaf" cx="930" cy="310" r="2.5"></circle>
+        <circle class="leaf" cx="1110" cy="310" r="2.5"></circle>
+        <text x="612" y="23">n</text>
+        <text x="342" y="123">n / 2</text>
+        <text x="192" y="223">n / 4</text>
+        <text x="1032" y="223">n / 4</text>
+        <text class="tick" x="90" y="327" text-anchor="middle">1</text>
+        <text class="tick" x="1110" y="327" text-anchor="middle">1</text>
+        <text x="40" y="80">divide</text>
+        <text x="40" y="180">conquer</text>
+        <text x="40" y="280">base case</text>
+        <text x="1160" y="172" text-anchor="end" transform="rotate(90 1160 172)">DEPTH log₂ n</text>
+      </svg>
+      <figcaption>
+        <span class="mono-label">深度：log₂ n 层</span>
+        <span class="mono-label">若每层合并 O(n) → 总计 O(n log n)</span>
+        <span class="mono-label" style="color:var(--blue)">叶子即递归出口</span>
+      </figcaption>
+    </figure>
+
+    <div class="scroll-cue"><span>SCROLL · 向下看三个例题</span></div>
+  </div>
+</section>
+
+<section class="section" id="idea" aria-labelledby="ideaTitle">
+  <div class="wrap">
+    <header class="sec-head reveal" data-reveal>
+      <div class="sec-no" aria-hidden="true">壹</div>
+      <div>
+        <p class="mono-label">The three moves / 思想</p>
+        <h2 id="ideaTitle">分、治、合，缺一不可</h2>
+      </div>
+      <p class="sec-lede">分治不是“把代码拆小”，而是一套可证明的递归结构：切开问题、递归求解、再付出合并的代价。</p>
+    </header>
+
+    <div class="steps">
+      <article class="step reveal" data-reveal>
+        <div class="step-top"><span class="step-no">01 / DIVIDE</span><span class="mono-label" style="color:var(--blue)">分</span></div>
+        <h3>分解<em>DIVIDE</em></h3>
+        <svg viewBox="0 0 260 104" aria-hidden="true">
+          <rect x="80" y="10" width="100" height="15" class="sg sf"></rect>
+          <text class="lbl" x="186" y="21">n</text>
+          <path class="sl" d="M130 25 V42 H65 V55"></path>
+          <path class="sl" d="M130 25 V42 H195 V55"></path>
+          <rect x="18" y="55" width="94" height="14" class="sg"></rect>
+          <rect x="148" y="55" width="94" height="14" class="sg"></rect>
+          <text class="lbl" x="65" y="84" text-anchor="middle">n/2</text>
+          <text class="lbl" x="195" y="84" text-anchor="middle">n/2</text>
+          <path class="sl" d="M65 90 V100"></path>
+          <path class="sl" d="M195 90 V100"></path>
+        </svg>
+        <p>找到一条“切线”，让子问题规模变小、结构不变，并且彼此独立。切口选得好，递归才便宜。</p>
+      </article>
+
+      <article class="step reveal" data-reveal style="transition-delay:.08s">
+        <div class="step-top"><span class="step-no">02 / CONQUER</span><span class="mono-label" style="color:var(--blue)">治</span></div>
+        <h3>求解<em>CONQUER</em></h3>
+        <svg viewBox="0 0 260 104" aria-hidden="true">
+          <rect x="10" y="8" width="240" height="86" class="sg"></rect>
+          <text class="lbl" x="18" y="23">solve(n)</text>
+          <rect x="55" y="22" width="150" height="58" fill="none" stroke="var(--hair)" stroke-width="1" stroke-dasharray="2 5"></rect>
+          <rect x="96" y="42" width="68" height="18" class="sg sf-red"></rect>
+          <text class="lbl" x="130" y="54" text-anchor="middle">base case</text>
+          <path class="sg-red" d="M130 60 V74 H130" marker-end="url(#arrowHead)"></path>
+          <text class="lbl" x="138" y="78" style="fill:var(--red)">直接返回</text>
+          <defs>
+            <marker id="arrowHead" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto">
+              <path d="M0 0 L6 3 L0 6 Z" fill="var(--red)"></path>
+            </marker>
+          </defs>
+        </svg>
+        <p>子问题仍然大，就继续递归；小到可以直接回答，就停。base case 是递归的地板，也是正确性的起点。</p>
+      </article>
+
+      <article class="step reveal" data-reveal style="transition-delay:.16s">
+        <div class="step-top"><span class="step-no">03 / COMBINE</span><span class="mono-label" style="color:var(--blue)">合</span></div>
+        <h3>合并<em>COMBINE</em></h3>
+        <svg viewBox="0 0 260 104" aria-hidden="true">
+          <g class="sg">
+            <rect x="18" y="8" width="18" height="10"></rect><rect x="39" y="8" width="18" height="10"></rect><rect x="60" y="8" width="18" height="10"></rect><rect x="81" y="8" width="18" height="10"></rect>
+            <rect x="158" y="8" width="18" height="10" class="sf"></rect><rect x="179" y="8" width="18" height="10" class="sf"></rect><rect x="200" y="8" width="18" height="10" class="sf"></rect><rect x="221" y="8" width="18" height="10" class="sf"></rect>
+          </g>
+          <path class="sl" d="M58 18 V32 H130 V44"></path>
+          <path class="sl" d="M199 18 V32 H130 V44"></path>
+          <g class="sg">
+            <rect x="12" y="48" width="20" height="11" class="sf"></rect><rect x="36" y="48" width="20" height="11"></rect><rect x="60" y="48" width="20" height="11" class="sf"></rect><rect x="84" y="48" width="20" height="11"></rect>
+            <rect x="108" y="48" width="20" height="11" class="sf"></rect><rect x="132" y="48" width="20" height="11"></rect><rect x="156" y="48" width="20" height="11" class="sf"></rect><rect x="180" y="48" width="20" height="11"></rect>
+            <rect x="204" y="48" width="20" height="11" class="sf"></rect><rect x="228" y="48" width="20" height="11"></rect>
+          </g>
+          <text class="lbl" x="130" y="82" text-anchor="middle">merge cost = f(n)</text>
+          <text class="lbl" x="130" y="98" text-anchor="middle" style="fill:var(--red)">合并不免费</text>
+        </svg>
+        <p>把子答案拼成原答案。合并常是复杂度的胜负手：扫描、指针、复制，通常记作 f(n)。</p>
+      </article>
+    </div>
+
+    <div class="bridge reveal" data-reveal>
+      <span class="mono-label">适用前提 / 3 conditions</span>
+      <p><b>子问题独立</b>（不重叠，否则考虑动态规划） · <b>结构同构</b>（可递归描述） · <b>解可合并</b>（合并代价可接受）。三条缺一条，分治就可能只是更复杂的暴力。</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="merge" aria-labelledby="mergeTitle">
+  <div class="wrap">
+    <header class="sec-head reveal" data-reveal>
+      <div class="sec-no" aria-hidden="true">贰</div>
+      <div>
+        <p class="mono-label">Example 01 / 归并排序</p>
+        <h2 id="mergeTitle">把有序拼成有序</h2>
+      </div>
+      <p class="sec-lede">最标准的分治样例。对半切、递归排、线性合并；递归树每一层的总代价都是 O(n)，共 log₂ n 层。</p>
+    </header>
+
+    <div class="example-grid">
+      <aside class="notes reveal" data-reveal>
+        <div class="notes-head">
+          <p class="notes-title">How it works</p>
+          <h3>一路切到单元素，<br>再一层层拼回来。</h3>
+        </div>
+        <ul class="note-list">
+          <li><span class="k">分</span><span class="v">按中点对半切开，直到每段只剩一个元素：<b>8 → 4 → 2 → 1</b>。</span></li>
+          <li><span class="k">治</span><span class="v">单元素天然有序，作为 <b>base case</b> 直接返回，不再递归。</span></li>
+          <li><span class="k">合</span><span class="v">双指针合并两个有序段，每个元素只被扫描一次，单层代价 <b>O(n)</b>。</span></li>
+        </ul>
+        <div class="recur">
+          <span class="mono-label">Recurrence</span>
+          <p>T(n) = 2T(n/2) + O(n)<br>⇒ <em>Θ(n log n)</em></p>
+        </div>
+        <p class="note-foot">稳定排序，额外空间 O(n)。在合并分支里顺势统计「右侧先出」的次数，就是逆序对数量。</p>
+      </aside>
+
+      <div class="plate reveal" data-reveal>
+        <div class="demo-bar">
+          <span class="demo-tag"><i></i><span class="mono-label">Merge tree · 15 nodes</span></span>
+          <div class="controls">
+            <button class="btn btn-primary" id="mergePlay" type="button"><span aria-hidden="true">▶</span><span>播放分与合</span></button>
+            <button class="btn" id="mergeReset" type="button"><span aria-hidden="true">↺</span><span>重置</span></button>
+          </div>
+        </div>
+
+        <div class="tree-viewport" id="treeViewport" tabindex="0" aria-label="归并排序递归树演示，可横向滚动">
+          <div class="tree-inner" id="treeInner">
+            <svg class="tree-connectors" id="treeConnectors" aria-hidden="true"></svg>
+            <div class="tree-grid" id="treeGrid"></div>
+          </div>
+        </div>
+        <p class="swipe-hint">← 树的宽度超出时，可左右滑动 →</p>
+
+        <div class="tree-legend" aria-hidden="true">
+          <span><i></i>未处理 / 未到达</span>
+          <span><i class="m"></i>已合并</span>
+          <span><i class="a"></i>最终有序</span>
+        </div>
+        <p class="status" id="mergeStatus" aria-live="polite">原始数组 <b>[38, 27, 43, 3, 9, 82, 10, 1]</b> · n = 8，准备分解。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="maxsub" aria-labelledby="maxTitle">
+  <div class="wrap">
+    <header class="sec-head reveal" data-reveal>
+      <div class="sec-no" aria-hidden="true">叁</div>
+      <div>
+        <p class="mono-label">Example 02 / 最大子数组</p>
+        <h2 id="maxTitle">三种位置，一个不漏</h2>
+      </div>
+      <p class="sec-lede">答案要么完全在左、完全在右，要么跨过中点。前两种递归求解，第三种用两次线性扫描在合并步算出来。</p>
+    </header>
+
+    <div class="example-grid">
+      <aside class="notes reveal" data-reveal>
+        <div class="notes-head">
+          <p class="notes-title">Where can the answer be?</p>
+          <h3>切开之后，<br>候选只剩三类。</h3>
+        </div>
+        <ul class="note-list">
+          <li><span class="k">分</span><span class="v">取中点，切开数组。最大连续子数组只可能全在 <b>左半</b>、全在 <b>右半</b>，或 <b>跨过中点</b>。</span></li>
+          <li><span class="k">治</span><span class="v">左右两半分别递归求最大值；本演示直接给出递归结果，聚焦最容易被漏掉的合并步骤。</span></li>
+          <li><span class="k">合</span><span class="v">跨越解 = 以中点结尾的<b>最大左后缀</b> + 以中点后一格开始的最大右前缀。分别线性扫描。</span></li>
+        </ul>
+        <div class="recur">
+          <span class="mono-label">Recurrence</span>
+          <p>T(n) = 2T(n/2) + O(n)<br>⇒ <em>Θ(n log n)</em></p>
+        </div>
+        <p class="note-foot">Kadane 算法可以用 DP 做到 O(n)；这道题的分治价值，在于练习“合并跨边界信息”的建模方式。</p>
+      </aside>
+
+      <div class="plate reveal" data-reveal>
+        <div class="demo-bar">
+          <span class="demo-tag"><i></i><span class="mono-label">Divide &amp; cross · 9 cells</span></span>
+          <div class="controls">
+            <button class="btn btn-primary" id="maxPlay" type="button"><span aria-hidden="true">▶</span><span>播放演示</span></button>
+            <button class="btn" id="maxReset" type="button"><span aria-hidden="true">↺</span><span>重置</span></button>
+          </div>
+        </div>
+
+        <div class="array-stage">
+          <div class="zone-labels" aria-hidden="true">
+            <span class="zl" id="maxZoneL">LEFT · 左半 5 项</span>
+            <span class="zr" id="maxZoneR">RIGHT · 右半 4 项</span>
+          </div>
+          <div class="array-row" id="maxArray" role="img" aria-label="数组：-2, 1, -3, 4, -1, 2, 1, -5, 4"></div>
+        </div>
+
+        <div class="meter">
+          <span class="meter-label">当前数值<br>Current value</span>
+          <span class="meter-value tabular" id="maxValue">—</span>
+          <span class="cmp" aria-label="候选值比较">
+            <b id="cmpL">左半 <i>4</i></b>
+            <b id="cmpR">右半 <i>4</i></b>
+            <b id="cmpC">跨中点 <i>6</i></b>
+          </span>
+        </div>
+        <p class="status" id="maxStatus" aria-live="polite">初始问题：在 9 个数中找连续子数组的最大和。</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="section" id="board" aria-labelledby="boardTitle">
+  <div class="wrap">
+    <header class="sec-head reveal" data-reveal>
+      <div class="sec-no" aria-hidden="true">肆</div>
+      <div>
+        <p class="mono-label">Example 03 / 棋盘覆盖</p>
+        <h2 id="boardTitle">把不存在变成存在</h2>
+      </div>
+      <p class="sec-lede">8 × 8 棋盘上只有一个特殊格。四等分后，特殊格只落在一个象限；在中心放一块 L 骨牌，给其余三个象限各造一个“假想特殊格”。</p>
+    </header>
+
+    <div class="example-grid">
+      <aside class="notes reveal" data-reveal>
+        <div class="notes-head">
+          <p class="notes-title">Construct the subproblem</p>
+          <h3>没有特殊格，<br>就造一个给它。</h3>
+        </div>
+        <ul class="note-list">
+          <li><span class="k">分</span><span class="v">把 2ᵏ × 2ᵏ 棋盘四等分；唯一的特殊格只属于其中<b>一个象限</b>，另外三个象限暂时“无解”。</span></li>
+          <li><span class="k">治</span><span class="v">在中心放一块 L 骨牌，正好盖住三个无解象限<b>靠近中心的角格</b>。这三个角格变成“假想特殊格”，四个象限就完全同构了。</span></li>
+          <li><span class="k">合</span><span class="v">继续递归铺四个子棋盘；骨牌一旦放下就是答案，无需额外合并。</span></li>
+        </ul>
+        <div class="recur">
+          <span class="mono-label">Recurrence</span>
+          <p>T(k) = 4T(k−1) + Θ(1)<br>⇒ <em>Θ(4ᵏ) = Θ(n²)</em></p>
+        </div>
+        <p class="note-foot">骨牌总数为 (n²−1)/3，同样是 Θ(n²)，因此该铺法在渐进意义下最优。考点是“构造等价子问题”。</p>
+      </aside>
+
+      <div class="plate reveal" data-reveal>
+        <div class="demo-bar">
+          <span class="demo-tag"><i></i><span class="mono-label">L-tromino tiling · 8 × 8</span></span>
+          <div class="controls">
+            <button class="btn btn-primary" id="boardPlay" type="button"><span aria-hidden="true">▶</span><span>开始铺放</span></button>
+            <button class="btn" id="boardReset" type="button"><span aria-hidden="true">↺</span><span>重置</span></button>
+          </div>
+        </div>
+
+        <div class="board-stage">
+          <div class="board-wrap">
+            <div class="board" id="boardGrid" role="img" aria-label="8 乘 8 棋盘覆盖演示，三星标记为初始特殊格"></div>
+            <div class="board-caption">
+              <span class="mono-label">8 × 8 / 64 cells</span>
+              <span class="mono-label" style="color:var(--red)">★ initial defect</span>
+            </div>
+          </div>
+          <div class="board-side">
+            <div>
+              <span class="mono-label">Tiles placed</span>
+              <p class="tile-count"><span id="boardCount">0</span><small> / 21 块</small></p>
+            </div>
+            <ul class="legend" aria-label="颜色图例">
+              <li><i class="s0"></i>第 1 层（边长 8）<b>× 1</b></li>
+              <li><i class="s1"></i>第 2 层（边长 4）<b>× 4</b></li>
+              <li><i class="s2"></i>第 3 层（边长 2）<b>× 16</b></li>
+              <li><i class="sp"></i>特殊格<b>× 1</b></li>
+            </ul>
+            <p>颜色越深，骨牌越大、越先放置。每一层把问题四等分，直到边长 2 的棋盘被一块骨牌填满。</p>
+          </div>
+        </div>
+        <p class="status" id="boardStatus" aria-live="polite">棋盘就绪：64 格，1 个特殊格，需要 21 块 L 骨牌。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="theorem" aria-labelledby="theoremTitle">
+  <div class="wrap">
+    <header class="sec-head reveal" data-reveal>
+      <div class="sec-no" aria-hidden="true">伍</div>
+      <div>
+        <p class="mono-label">Complexity / 主定理</p>
+        <h2 id="theoremTitle">先写递归式，再谈复杂度</h2>
+      </div>
+      <p class="sec-lede">分治的复杂度几乎都长成 aT(n/b) + f(n)。把 f(n) 与叶子总成本 n^(log_b a) 比大小，就是主定理的全部直觉。</p>
+    </header>
+
+    <div class="theorem-grid">
+      <div class="reveal" data-reveal>
+        <div class="master">
+          <p class="math">T(n) = aT(n/b) + f(n)</p>
+          <p>a ≥ 1 个子问题，每个规模 n/b；f(n) 是分解与合并的代价。比较 f(n) 与临界量 n<sup>log<sub>b</sub>a</sup>。</p>
+        </div>
+
+        <div class="case">
+          <span class="case-no">①</span>
+          <div>
+            <h3>叶子压倒合并 · Leaning left</h3>
+            <p class="cond">f(n) = O(n<sup>log<sub>b</sub>a − ε</sup>)</p>
+            <p class="res">T(n) = <b>Θ(n<sup>log<sub>b</sub>a</sup>)</b></p>
+          </div>
+        </div>
+        <div class="case">
+          <span class="case-no">②</span>
+          <div>
+            <h3>势均力敌 · Balanced</h3>
+            <p class="cond">f(n) = Θ(n<sup>log<sub>b</sub>a</sup>)</p>
+            <p class="res">T(n) = <b>Θ(n<sup>log<sub>b</sub>a</sup> · log n)</b></p>
+          </div>
+        </div>
+        <div class="case">
+          <span class="case-no">③</span>
+          <div>
+            <h3>合并压倒递归 · Leaning right</h3>
+            <p class="cond">f(n) = Ω(n<sup>log<sub>b</sub>a + ε</sup>)，且满足正则条件</p>
+            <p class="res">T(n) = <b>Θ(f(n))</b></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal" data-reveal>
+        <div class="cost-box">
+          <h3>归并排序的递归树</h3>
+          <p>每层把所有元素合并一次，单层成本都是 n；一共有 log₂ n 层。</p>
+          <div class="cost-row"><span>第 1 层</span><div class="bar"></div><b>n</b></div>
+          <div class="cost-row"><span>第 2 层</span><div class="bar"></div><b>n</b></div>
+          <div class="cost-row"><span>第 3 层</span><div class="bar"></div><b>n</b></div>
+          <div class="cost-row"><span>第 4 层</span><div class="bar"></div><b>n</b></div>
+          <p class="cost-more">· · ·</p>
+          <div class="cost-row"><span>第 log₂n 层</span><div class="bar"></div><b>n</b></div>
+          <div class="cost-total"><span>n × log₂n</span><strong>Θ(n log n)</strong></div>
+        </div>
+
+        <div class="vs">
+          <div>
+            <h4>分治 vs 动态规划</h4>
+            <p>子问题彼此独立、不重复计算 → 分治；子问题重叠、需要记忆 → 动态规划。</p>
+          </div>
+          <div>
+            <h4>分治 vs 减治</h4>
+            <p>每次只留下一个子问题，是减治（二分查找）；留下多个，才是分治。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="apps reveal" data-reveal aria-label="分治的典型应用">
+      <span class="hot">归并排序</span>
+      <span class="hot">最大子数组</span>
+      <span class="hot">棋盘覆盖</span>
+      <span>快速排序</span>
+      <span>二分查找 · 减治</span>
+      <span>Karatsuba 乘法</span>
+      <span>Strassen 矩阵乘法</span>
+      <span>快速傅里叶变换 FFT</span>
+      <span>最近点对</span>
+      <span>快速幂</span>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-top">
+      <div class="footer-phrase" aria-label="分治合">
+        <b>分</b><i></i><b>治</b><i></i><b>合</b>
+      </div>
+      <p>分治真正的难点，从来不是写递归调用，而是找到正确的切口，以及足够便宜的合并方式。</p>
+    </div>
+    <div class="footer-bottom">
+      <span>DIVIDE &amp; CONQUER / ALGORITHM PLATE 01</span>
+      <span>SINGLE HTML · NO DEPENDENCIES</span>
+      <span>REDUCED-MOTION READY</span>
+    </div>
+  </div>
+</footer>
+<script>
+(function () {
+  "use strict";
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const progressWrap = document.querySelector(".progress");
+  function updateProgress() {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    progressWrap.style.setProperty("--p", p.toFixed(4));
+  }
+  window.addEventListener("scroll", updateProgress, { passive: true });
+  window.addEventListener("resize", updateProgress);
+  updateProgress();
+
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { document.body.classList.add("ready"); });
+  });
+
+  const revealElements = Array.from(document.querySelectorAll("[data-reveal]"));
+  if (reduceMotion || !("IntersectionObserver" in window)) {
+    revealElements.forEach(function (el) { el.classList.add("is-in"); });
+  } else {
+    const observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-in");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+    revealElements.forEach(function (el) { observer.observe(el); });
+  }
+
+  function createTimeline(config) {
+    const steps = config.steps;
+    const playBtn = config.playBtn;
+    const resetBtn = config.resetBtn;
+    const resetFn = config.resetFn;
+    const idleLabel = config.idleLabel;
+    const playingLabel = config.playingLabel || "暂停";
+    const doneLabel = config.doneLabel || "重播";
+    let index = 0;
+    let timer = null;
+    let playing = false;
+
+    function setButton(text, icon) {
+      const spans = playBtn.querySelectorAll("span");
+      if (spans.length >= 2) {
+        spans[0].textContent = icon;
+        spans[1].textContent = text;
+      }
+    }
+    function clearTimer() {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    }
+    function finish() {
+      playing = false;
+      clearTimer();
+      setButton(doneLabel, "↻");
+    }
+    function run() {
+      if (!playing) return;
+      if (index >= steps.length) { finish(); return; }
+      const step = steps[index];
+      index += 1;
+      step.fn();
+      if (index >= steps.length) { finish(); return; }
+      timer = window.setTimeout(run, step.wait == null ? 600 : step.wait);
+    }
+    function start() {
+      if (playing) {
+        playing = false;
+        clearTimer();
+        setButton("继续", "▶");
+        return;
+      }
+      if (index === 0 || index >= steps.length) {
+        resetFn();
+        if (index >= steps.length) index = 0;
+      }
+      playing = true;
+      setButton(playingLabel, "❚❚");
+      if (reduceMotion) {
+        while (index < steps.length) {
+          const step = steps[index];
+          index += 1;
+          step.fn();
+        }
+        finish();
+        return;
+      }
+      clearTimer();
+      timer = window.setTimeout(run, 160);
+    }
+    function reset() {
+      playing = false;
+      index = 0;
+      clearTimer();
+      resetFn();
+      setButton(idleLabel, "▶");
+    }
+    playBtn.addEventListener("click", start);
+    resetBtn.addEventListener("click", reset);
+    resetFn();
+    setButton(idleLabel, "▶");
+  }
+
+  const MERGE_DATA = [38, 27, 43, 3, 9, 82, 10, 1];
+  const treeGrid = document.getElementById("treeGrid");
+  const treeInner = document.getElementById("treeInner");
+  const treeConnectors = document.getElementById("treeConnectors");
+  const mergeStatus = document.getElementById("mergeStatus");
+  const mergeNodes = [];
+
+  function setChips(el, values) {
+    const fragment = document.createDocumentFragment();
+    values.forEach(function (value) {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = String(value);
+      fragment.appendChild(chip);
+    });
+    el.replaceChildren(fragment);
+  }
+
+  function buildMergeNode(lo, hi, depth) {
+    const el = document.createElement("div");
+    el.className = "tnode";
+    el.style.gridRow = String(depth + 1);
+    el.style.gridColumn = (lo + 1) + " / span " + (hi - lo + 1);
+    const arr = MERGE_DATA.slice(lo, hi + 1);
+    setChips(el, arr);
+    treeGrid.appendChild(el);
+
+    const node = {
+      el: el,
+      lo: lo,
+      hi: hi,
+      depth: depth,
+      arr: arr,
+      sorted: arr.slice().sort(function (a, b) { return a - b; }),
+      children: []
+    };
+    mergeNodes.push(node);
+
+    if (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      node.children.push(buildMergeNode(lo, mid, depth + 1));
+      node.children.push(buildMergeNode(mid + 1, hi, depth + 1));
+    }
+    return node;
+  }
+
+  const mergeRoot = buildMergeNode(0, MERGE_DATA.length - 1, 0);
+  const mergeByDepth = [0, 1, 2, 3].map(function (depth) {
+    return mergeNodes.filter(function (node) { return node.depth === depth; });
+  });
+  const revealedDepths = new Set();
+
+  function syncEdgeVisibility() {
+    treeConnectors.querySelectorAll("path[data-depth]").forEach(function (path) {
+      path.style.opacity = revealedDepths.has(Number(path.dataset.depth)) ? "1" : "0";
+    });
+  }
+
+  function drawConnectors() {
+    const width = Math.max(1, treeInner.clientWidth);
+    const height = Math.max(1, treeInner.clientHeight);
+    treeConnectors.setAttribute("viewBox", "0 0 " + width + " " + height);
+    treeConnectors.replaceChildren();
+    const ns = "http://www.w3.org/2000/svg";
+
+    mergeNodes.forEach(function (parent) {
+      parent.children.forEach(function (child) {
+        const px = parent.el.offsetLeft + parent.el.offsetWidth / 2;
+        const py = parent.el.offsetTop + parent.el.offsetHeight;
+        const cx = child.el.offsetLeft + child.el.offsetWidth / 2;
+        const cy = child.el.offsetTop;
+        if (cy <= py) return;
+        const midY = py + (cy - py) / 2;
+        const path = document.createElementNS(ns, "path");
+        path.setAttribute("d",
+          "M" + px.toFixed(1) + " " + py.toFixed(1) +
+          " V" + midY.toFixed(1) +
+          " H" + cx.toFixed(1) +
+          " V" + cy.toFixed(1)
+        );
+        path.setAttribute("data-depth", String(child.depth));
+        path.style.opacity = revealedDepths.has(child.depth) ? "1" : "0";
+        treeConnectors.appendChild(path);
+      });
+    });
+  }
+
+  function resetMerge() {
+    revealedDepths.clear();
+    mergeNodes.forEach(function (node) {
+      node.el.classList.remove("is-on", "is-merged", "is-answer", "flash");
+      setChips(node.el, node.arr);
+    });
+    mergeRoot.el.classList.add("is-on");
+    syncEdgeVisibility();
+    mergeStatus.innerHTML = "原始数组 <b>[38, 27, 43, 3, 9, 82, 10, 1]</b> · n = 8，准备分解。";
+  }
+
+  function revealMergeDepth(depth) {
+    mergeByDepth[depth].forEach(function (node) { node.el.classList.add("is-on"); });
+    revealedDepths.add(depth);
+    syncEdgeVisibility();
+  }
+
+  const mergeSteps = [
+    {
+      fn: function () {
+        revealMergeDepth(1);
+        mergeStatus.innerHTML = "分 · <b>8 → 4 + 4</b>：取中点切开，两个子问题结构完全相同。";
+      },
+      wait: 850
+    },
+    {
+      fn: function () {
+        revealMergeDepth(2);
+        mergeStatus.innerHTML = "分 · <b>4 → 2 + 2</b>：继续对半切，递归树向下生长。";
+      },
+      wait: 850
+    },
+    {
+      fn: function () {
+        revealMergeDepth(3);
+        mergeStatus.innerHTML = "分 · <b>2 → 1 + 1</b>：到达单元素。它们天然有序，作为 base case 返回。";
+      },
+      wait: 1000
+    },
+    {
+      fn: function () {
+        mergeByDepth[2].forEach(function (node) {
+          setChips(node.el, node.sorted);
+          node.el.classList.add("is-merged", "flash");
+          window.setTimeout(function () { node.el.classList.remove("flash"); }, 550);
+        });
+        mergeStatus.innerHTML = "合 · 两两归并四个二元组，组内变得有序。每一对都只用一次线性扫描。";
+      },
+      wait: 1250
+    },
+    {
+      fn: function () {
+        mergeByDepth[1].forEach(function (node) {
+          setChips(node.el, node.sorted);
+          node.el.classList.add("is-merged", "flash");
+          window.setTimeout(function () { node.el.classList.remove("flash"); }, 550);
+        });
+        mergeStatus.innerHTML = "合 · 有序四元组继续两两归并，合并代价依然是 O(n)。";
+      },
+      wait: 1250
+    },
+    {
+      fn: function () {
+        setChips(mergeRoot.el, mergeRoot.sorted);
+        mergeRoot.el.classList.add("is-answer", "flash");
+        window.setTimeout(function () { mergeRoot.el.classList.remove("flash"); }, 650);
+        mergeStatus.innerHTML = "完成 · 全局有序。<b>T(n) = 2T(n/2) + O(n) ⇒ Θ(n log n)</b>：n log n，不是 n²。";
+      },
+      wait: 0
+    }
+  ];
+
+  createTimeline({
+    steps: mergeSteps,
+    playBtn: document.getElementById("mergePlay"),
+    resetBtn: document.getElementById("mergeReset"),
+    idleLabel: "播放分与合",
+    doneLabel: "重播分合",
+    resetFn: resetMerge
+  });
+
+  requestAnimationFrame(drawConnectors);
+  window.addEventListener("resize", drawConnectors);
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(drawConnectors).observe(treeInner);
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(drawConnectors).catch(function () {});
+  }
+
+  const MAX_DATA = [-2, 1, -3, 4, -1, 2, 1, -5, 4];
+  const MAX_MID = 4;
+  const maxArray = document.getElementById("maxArray");
+  const maxZoneL = document.getElementById("maxZoneL");
+  const maxZoneR = document.getElementById("maxZoneR");
+  const maxValue = document.getElementById("maxValue");
+  const maxStatus = document.getElementById("maxStatus");
+  const cmpL = document.getElementById("cmpL");
+  const cmpR = document.getElementById("cmpR");
+  const cmpC = document.getElementById("cmpC");
+
+  const maxCells = MAX_DATA.map(function (value, i) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = value > 0 ? "+" + value : String(value);
+    const idx = document.createElement("span");
+    idx.className = "idx";
+    idx.textContent = String(i);
+    cell.append(num, idx);
+    maxArray.appendChild(cell);
+    return cell;
+  });
+
+  function resetMax() {
+    maxCells.forEach(function (cell) { cell.className = "cell"; });
+    maxZoneL.classList.remove("is-hot");
+    maxZoneR.classList.remove("is-hot");
+    maxValue.textContent = "—";
+    maxValue.classList.remove("is-red");
+    [cmpL, cmpR, cmpC].forEach(function (chip) { chip.classList.remove("on"); });
+    maxStatus.textContent = "初始问题：在 9 个数中找连续子数组的最大和。";
+  }
+
+  function clearMaxScan() {
+    maxCells.forEach(function (cell) {
+      cell.classList.remove("is-scan", "is-suffix", "is-prefix");
+    });
+  }
+
+  const maxSteps = [
+    {
+      fn: function () {
+        maxCells.forEach(function (cell, i) {
+          cell.classList.add(i <= MAX_MID ? "zone-left" : "zone-right");
+        });
+        maxZoneL.classList.add("is-hot");
+        maxZoneR.classList.add("is-hot");
+        maxStatus.innerHTML = "分 · 中点在索引 <b>4</b> 与 <b>5</b> 之间：左半 5 项，右半 4 项。";
+      },
+      wait: 750
+    },
+    {
+      fn: function () {
+        maxCells[3].classList.add("is-best");
+        cmpL.classList.add("on");
+        maxValue.textContent = "+4";
+        maxStatus.innerHTML = "治 · 左半递归返回：最优子数组 <b>[4]</b>，和为 <b>4</b>。";
+      },
+      wait: 750
+    },
+    {
+      fn: function () {
+        maxCells[8].classList.add("is-best");
+        cmpR.classList.add("on");
+        maxValue.textContent = "+4";
+        maxStatus.innerHTML = "治 · 右半递归返回：最优子数组 <b>[4]</b>，和为 <b>4</b>。";
+      },
+      wait: 750
+    }
+  ];
+
+  for (let i = MAX_MID; i >= 0; i -= 1) {
+    const suffixSum = MAX_DATA.slice(i, MAX_MID + 1).reduce(function (a, b) { return a + b; }, 0);
+    (function (start, sum) {
+      maxSteps.push({
+        fn: function () {
+          clearMaxScan();
+          for (let k = start; k <= MAX_MID; k += 1) {
+            maxCells[k].classList.add("is-suffix");
+          }
+          maxCells[start].classList.add("is-scan");
+          maxValue.textContent = (sum > 0 ? "+" : "") + sum;
+          maxValue.classList.toggle("is-red", sum < 0);
+          maxStatus.innerHTML = "合 · 从中点向左扩展：后缀 [" + start + "..4] 的累计和是 <b>" + sum + "</b>。";
+        },
+        wait: 320
+      });
+    })(i, suffixSum);
+  }
+
+  maxSteps.push({
+    fn: function () {
+      clearMaxScan();
+      maxCells[3].classList.add("is-best");
+      maxCells[4].classList.add("is-best");
+      maxValue.textContent = "+3";
+      maxValue.classList.remove("is-red");
+      maxStatus.innerHTML = "左后缀的最大值是 <b>3</b>，来自子数组 <b>[4, −1]</b>。";
+    },
+    wait: 700
+  });
+
+  for (let j = MAX_MID + 1; j < MAX_DATA.length; j += 1) {
+    const prefixSum = MAX_DATA.slice(MAX_MID + 1, j + 1).reduce(function (a, b) { return a + b; }, 0);
+    (function (end, sum) {
+      maxSteps.push({
+        fn: function () {
+          clearMaxScan();
+          for (let k = MAX_MID + 1; k <= end; k += 1) {
+            maxCells[k].classList.add("is-prefix");
+          }
+          maxCells[end].classList.add("is-scan");
+          maxValue.textContent = (sum > 0 ? "+" : "") + sum;
+          maxValue.classList.toggle("is-red", sum < 0);
+          maxStatus.innerHTML = "合 · 从中点向右扩展：前缀 [5.." + end + "] 的累计和是 <b>" + sum + "</b>。";
+        },
+        wait: 320
+      });
+    })(j, prefixSum);
+  }
+
+  maxSteps.push({
+    fn: function () {
+      clearMaxScan();
+      maxCells[8].classList.remove("is-best");
+      maxCells[5].classList.add("is-best");
+      maxCells[6].classList.add("is-best");
+      maxValue.textContent = "+3";
+      maxValue.classList.remove("is-red");
+      maxStatus.innerHTML = "右前缀的最大值是 <b>3</b>，来自子数组 <b>[2, 1]</b>。";
+    },
+    wait: 700
+  });
+
+  maxSteps.push({
+    fn: function () {
+      maxCells.forEach(function (cell) {
+        cell.classList.remove("is-scan", "is-suffix", "is-prefix", "is-best");
+      });
+      for (let k = 3; k <= 6; k += 1) {
+        maxCells[k].classList.add("is-cross");
+      }
+      cmpC.classList.add("on");
+      maxValue.textContent = "+6";
+      maxValue.classList.add("is-red");
+      maxStatus.innerHTML = "合 · 跨越解 = 左后缀 3 + 右前缀 3 = <b>6</b>，对应 <b>[4, −1, 2, 1]</b>。";
+    },
+    wait: 1000
+  });
+
+  maxSteps.push({
+    fn: function () {
+      maxCells.forEach(function (cell, i) {
+        if (i < 3 || i > 6) cell.classList.add("is-faded");
+      });
+      maxStatus.innerHTML = "答案 · max(左 4, 右 4, 跨中点 6) = <b>6</b>。跨边界的情形不能漏，它正是合并步的工作。";
+    },
+    wait: 0
+  });
+
+  createTimeline({
+    steps: maxSteps,
+    playBtn: document.getElementById("maxPlay"),
+    resetBtn: document.getElementById("maxReset"),
+    idleLabel: "播放演示",
+    doneLabel: "重播演示",
+    resetFn: resetMax
+  });
+
+  const BOARD_SIZE = 8;
+  const SPECIAL_CELL = [2, 5];
+  const boardEl = document.getElementById("boardGrid");
+  const boardCountEl = document.getElementById("boardCount");
+  const boardStatus = document.getElementById("boardStatus");
+  const boardCells = [];
+
+  for (let r = 0; r < BOARD_SIZE; r += 1) {
+    for (let c = 0; c < BOARD_SIZE; c += 1) {
+      const cell = document.createElement("div");
+      cell.className = "bcell";
+      if (r === SPECIAL_CELL[0] && c === SPECIAL_CELL[1]) cell.classList.add("special");
+      boardEl.appendChild(cell);
+      boardCells.push(cell);
+    }
+  }
+
+  const boardTiles = [];
+  let tileCounter = 0;
+
+  function coverBoard(tr, tc, dr, dc, size) {
+    if (size === 1) return;
+    const half = size / 2;
+    const quads = [
+      { tr: tr, tc: tc, has: dr < tr + half && dc < tc + half, cr: tr + half - 1, cc: tc + half - 1 },
+      { tr: tr, tc: tc + half, has: dr < tr + half && dc >= tc + half, cr: tr + half - 1, cc: tc + half },
+      { tr: tr + half, tc: tc, has: dr >= tr + half && dc < tc + half, cr: tr + half, cc: tc + half - 1 },
+      { tr: tr + half, tc: tc + half, has: dr >= tr + half && dc >= tc + half, cr: tr + half, cc: tc + half }
+    ];
+    const withoutDefect = quads.filter(function (q) { return !q.has; });
+    tileCounter += 1;
+    boardTiles.push({
+      id: tileCounter,
+      size: size,
+      depth: Math.log2(BOARD_SIZE / size),
+      cells: withoutDefect.map(function (q) { return [q.cr, q.cc]; })
+    });
+    quads.forEach(function (q) {
+      coverBoard(
+        q.tr,
+        q.tc,
+        q.has ? dr : q.cr,
+        q.has ? dc : q.cc,
+        half
+      );
+    });
+  }
+
+  coverBoard(0, 0, SPECIAL_CELL[0], SPECIAL_CELL[1], BOARD_SIZE);
+
+  function resetBoard() {
+    boardCells.forEach(function (cell) {
+      cell.classList.remove("d0", "d1", "d2", "just");
+      cell.removeAttribute("title");
+    });
+    boardCountEl.textContent = "0";
+    boardStatus.textContent = "棋盘就绪：64 格，1 个特殊格，需要 " + boardTiles.length + " 块 L 骨牌。";
+  }
+
+  const boardSteps = boardTiles.map(function (tile, index) {
+    return {
+      fn: function () {
+        tile.cells.forEach(function (pair) {
+          const cell = boardCells[pair[0] * BOARD_SIZE + pair[1]];
+          cell.classList.add("d" + tile.depth, "just");
+          cell.title = "第 " + tile.id + " 块 · 边长 " + tile.size;
+          window.setTimeout(function () { cell.classList.remove("just"); }, 450);
+        });
+        boardCountEl.textContent = String(index + 1);
+        if (index === boardTiles.length - 1) {
+          boardStatus.innerHTML = "完成 · " + boardTiles.length + " 块骨牌覆盖 63 格，特殊格保留。<b>T(k) = 4T(k−1) + Θ(1) ⇒ Θ(n²)</b>。";
+        } else {
+          boardStatus.innerHTML = "放置第 <b>" + (index + 1) + " / " + boardTiles.length + "</b> 块 · 本层棋盘边长 <b>" + tile.size + "</b> · 一次补上三个象限的缺口。";
+        }
+      },
+      wait: 170
+    };
+  });
+
+  createTimeline({
+    steps: boardSteps,
+    playBtn: document.getElementById("boardPlay"),
+    resetBtn: document.getElementById("boardReset"),
+    idleLabel: "开始铺放",
+    doneLabel: "重播铺放",
+    resetFn: resetBoard
+  });
+
+  updateProgress();
+})();
+</script>
+</body>
+</html>
