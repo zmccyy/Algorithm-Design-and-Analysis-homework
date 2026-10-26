@@ -2,3 +2,4 @@ __pycache__/
 .ipynb_checkpoints/
 .venv*/
 .OTTER_LOG
+互评/

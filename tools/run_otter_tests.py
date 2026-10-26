@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import os
 import sys
 import time as _time
 import traceback
@@ -35,11 +36,14 @@ PRELUDE = """\
 import numpy as np
 from numpy.random import randint
 from time import time
+import heapq
+import pickle
 import tqdm
 import scipy
 import math
 import matplotlib.pyplot as plt
 import numpy.random as random
+import networkx as nx
 """
 
 
@@ -75,15 +79,22 @@ def build_namespace(path, nb, skip_substr=()):
     ns = {"__name__": "__main__"}
     exec(compile(PRELUDE, "<prelude>", "exec"), ns)
     ran, skipped = [], []
-    for i, cell in enumerate(nb["cells"]):
-        if cell.get("cell_type") != "code":
-            continue
-        src = "".join(cell.get("source", []))
-        if any(m in src for m in SKIP_MARKERS) or any(m in src for m in skip_substr):
-            skipped.append(i)
-            continue
-        exec(compile(src, f"{path}:cell{i}", "exec"), ns)
-        ran.append(i)
+    # otter executes notebooks with the notebook's folder as the working directory;
+    # do the same so cells that open relative data files (e.g. generated_testcases.pkl) work.
+    previous_cwd = os.getcwd()
+    os.chdir(os.path.dirname(os.path.abspath(path)))
+    try:
+        for i, cell in enumerate(nb["cells"]):
+            if cell.get("cell_type") != "code":
+                continue
+            src = "".join(cell.get("source", []))
+            if any(m in src for m in SKIP_MARKERS) or any(m in src for m in skip_substr):
+                skipped.append(i)
+                continue
+            exec(compile(src, f"{path}:cell{i}", "exec"), ns)
+            ran.append(i)
+    finally:
+        os.chdir(previous_cwd)
     if "rng_seed" not in ns:
         ns["rng_seed"] = 0
     return ns, ran, skipped
