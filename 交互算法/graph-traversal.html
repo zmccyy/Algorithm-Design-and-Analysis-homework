@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图上行走 · BFS / DFS / 拓扑 / SCC</title>
+<style>
+:root{
+  --night:#08111f;
+  --night-2:#0d1727;
+  --night-3:#111f33;
+  --panel:#0f1b2c;
+  --panel-2:#0c1625;
+  --ink:#e9eef7;
+  --muted:#8fa2ba;
+  --line:#263850;
+  --line-bright:#3c5575;
+  --amber:#f4b942;
+  --amber-soft:#3a2e18;
+  --cyan:#5cc8e8;
+  --cyan-soft:#14313e;
+  --mint:#7fe0b0;
+  --mint-soft:#163126;
+  --coral:#f07167;
+  --coral-soft:#3a1f22;
+  --violet:#c9a7f0;
+  --violet-soft:#2c223d;
+  --serif:"Songti SC","SimSun","STSong","Noto Serif SC",serif;
+  --sans:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --display:"Bahnschrift","Arial Narrow","Microsoft YaHei",sans-serif;
+  --mono:"Cascadia Mono","Consolas","SFMono-Regular","Menlo",monospace;
+  --max:1240px;
+  --pad:clamp(18px,4vw,56px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--night);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;background-image:linear-gradient(to right,rgba(92,200,232,.045) 1px,transparent 1px),linear-gradient(to bottom,rgba(92,200,232,.045) 1px,transparent 1px);background-size:56px 56px}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 78% 4%,rgba(92,200,232,.09),transparent 38%),radial-gradient(circle at 12% 48%,rgba(244,185,66,.06),transparent 36%)}
+::selection{background:var(--amber);color:var(--night)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+svg{display:block}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.wrap{width:min(calc(100% - 2 * var(--pad)),var(--max));margin-inline:auto}
+.mono{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);line-height:1.6}
+.tabular{font-variant-numeric:tabular-nums}
+.progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:120;pointer-events:none}
+.progress span{display:block;height:100%;background:var(--amber);transform:scaleX(var(--p,0));transform-origin:left center}
+.topbar{position:sticky;top:0;z-index:100;background:rgba(8,17,31,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-inner{width:min(calc(100% - 2 * var(--pad)),var(--max));margin-inline:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:58px}
+.brand{display:flex;align-items:baseline;gap:11px;white-space:nowrap}
+.brand b{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:.04em;color:var(--ink)}
+.brand span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--muted)}
+.nav{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid transparent;padding:4px 0;white-space:nowrap}
+.nav a:hover{color:var(--ink);border-color:var(--amber)}
+.hero{padding:clamp(46px,7vw,92px) 0 clamp(42px,6vw,72px);border-bottom:1px solid var(--line)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(330px,.95fr);gap:clamp(28px,5vw,72px);align-items:center}
+.eyebrow{display:flex;align-items:center;gap:10px;color:var(--cyan);font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.eyebrow::before{content:"";width:28px;height:1px;background:var(--cyan)}
+.hero h1{font-family:var(--display);font-size:clamp(3rem,8vw,6.5rem);font-weight:700;line-height:.94;letter-spacing:-.04em;margin-top:18px}
+.hero h1 em{font-style:normal;color:var(--amber)}
+.hero h1 .small{display:block;font-family:var(--serif);font-size:.32em;font-weight:600;letter-spacing:.08em;color:var(--muted);margin-top:14px}
+.hero-sub{max-width:640px;margin-top:24px;font-size:15.5px;line-height:1.95;color:var(--muted)}
+.hero-sub b{color:var(--ink);font-weight:600;box-shadow:inset 0 -.45em 0 var(--cyan-soft)}
+.hero-stats{display:flex;flex-wrap:wrap;margin-top:32px;border-top:1px solid var(--line-bright);border-bottom:1px solid var(--line-bright)}
+.hero-stat{padding:13px 22px 13px 0;margin-right:22px;border-right:1px solid var(--line)}
+.hero-stat:last-child{border-right:0;margin-right:0}
+.hero-stat b{display:block;font-family:var(--mono);font-size:1.35rem;font-weight:500;letter-spacing:-.02em;color:var(--amber)}
+.hero-stat span{display:block;font-size:10.5px;color:var(--muted);margin-top:1px}
+.hero-map{border:1px solid var(--line-bright);background:var(--panel-2);padding:14px;position:relative;overflow:hidden}
+.hero-map::before{content:"";position:absolute;inset:0;background-image:linear-gradient(to right,rgba(92,200,232,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(92,200,232,.06) 1px,transparent 1px);background-size:30px 30px;pointer-events:none}
+.hero-map svg{position:relative;width:100%;height:auto}
+.hero-map figcaption{position:relative;display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);margin-top:10px;padding-top:9px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted)}
+.flow-dash{stroke-dasharray:5 7;animation:flow 4.5s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-72}}
+.section{padding:clamp(52px,7vw,88px) 0;border-bottom:1px solid var(--line)}
+.sec-head{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(230px,340px);gap:24px;align-items:start;margin-bottom:clamp(28px,4vw,46px)}
+.sec-no{font-family:var(--mono);font-size:11px;color:var(--amber);padding-top:7px;border-top:1px solid var(--line-bright)}
+.sec-head h2{font-family:var(--display);font-size:clamp(1.9rem,3.8vw,3.2rem);font-weight:700;line-height:1.15;letter-spacing:-.03em;margin-top:8px}
+.sec-lede{font-size:13.5px;line-height:1.9;color:var(--muted);padding-top:24px}
+.card{border:1px solid var(--line-bright);background:rgba(15,27,44,.58);padding:clamp(18px,2.4vw,26px)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}
+.card-head .mono{color:var(--cyan)}
+.btn{appearance:none;border:1px solid var(--line-bright);background:transparent;padding:9px 14px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;cursor:pointer;transition:background .18s,color .18s,border-color .18s}
+.btn:hover{background:var(--ink);color:var(--night);border-color:var(--ink)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.btn-primary{background:var(--amber);border-color:var(--amber);color:var(--night)}
+.btn-primary:hover{background:var(--ink);border-color:var(--ink);color:var(--night)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line-bright)}
+.compare-card{padding:clamp(18px,2.5vw,28px);border-right:1px solid var(--line);background:rgba(15,27,44,.4)}
+.compare-card:last-child{border-right:0}
+.compare-card .big{font-family:var(--display);font-size:clamp(2rem,4vw,3rem);font-weight:700;line-height:1;color:var(--cyan);margin:4px 0 12px}
+.compare-card:last-child .big{color:var(--amber)}
+.compare-card h3{font-family:var(--display);font-size:22px;font-weight:700;line-height:1.3;margin-bottom:8px}
+.compare-card p{font-size:12.5px;line-height:1.9;color:var(--muted)}
+.compare-card p b{color:var(--ink);font-weight:600}
+.algo-board{border:1px solid var(--line-bright);background:var(--panel-2);overflow:hidden}
+.algo-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;flex-wrap:wrap;gap:5px}
+.tab{appearance:none;border:1px solid var(--line-bright);background:transparent;padding:7px 10px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;cursor:pointer;color:var(--muted)}
+.tab:hover{color:var(--ink);border-color:var(--ink)}
+.tab.is-active{background:var(--amber);border-color:var(--amber);color:var(--night)}
+.algo-top .controls .btn{font-size:10px;padding:7px 10px}
+.algo-meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:10px 15px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;color:var(--muted)}
+.algo-meta b{color:var(--ink);font-weight:500}
+.scroll-hint{display:none}
+@media (max-width:720px){.scroll-hint{display:block;margin:0;padding:8px 15px 0;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--muted)}}
+.algo-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr);min-height:460px}
+.graph-panel{position:relative;border-right:1px solid var(--line);min-width:0;background-image:linear-gradient(to right,rgba(92,200,232,.05) 1px,transparent 1px),linear-gradient(to bottom,rgba(92,200,232,.05) 1px,transparent 1px);background-size:32px 32px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--line-bright) transparent}
+#algoGraph{width:100%;min-width:620px;height:auto}
+.graph-badge{position:absolute;top:12px;left:12px;border:1px solid var(--cyan);color:var(--cyan);font-family:var(--mono);font-size:9px;letter-spacing:.1em;padding:3px 6px;background:rgba(8,17,31,.82);display:none}
+.graph-badge.is-on{display:block}
+.graph-legend{position:absolute;left:12px;bottom:10px;display:flex;flex-wrap:wrap;gap:10px;padding:6px 9px;background:rgba(8,17,31,.8);border:1px solid var(--line);font-family:var(--mono);font-size:8.5px;color:var(--muted);max-width:calc(100% - 24px)}
+.graph-legend span{display:flex;align-items:center;gap:5px}
+.graph-legend i{width:13px;height:2px;background:var(--line-bright);display:block}
+.graph-legend i.c{background:var(--amber)}
+.graph-legend i.v{background:var(--mint)}
+.graph-legend i.b{background:var(--coral)}
+.graph-legend i.x{background:var(--cyan)}
+.trace-panel{padding:14px;display:flex;flex-direction:column;gap:14px;min-width:0;background:rgba(8,17,31,.36)}
+.trace-block{border-top:1px solid var(--line);padding-top:10px;min-height:0}
+.trace-block:first-child{border-top:0;padding-top:0}
+.trace-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+.trace-head .mono{color:var(--cyan)}
+.trace-list{display:flex;flex-wrap:wrap;gap:5px;min-height:28px}
+.trace-chip{border:1px solid var(--line-bright);padding:3px 7px;font-family:var(--mono);font-size:10px;color:var(--ink);background:rgba(92,200,232,.06);white-space:nowrap}
+.trace-chip.is-empty{border-style:dashed;color:var(--muted);background:transparent}
+.trace-chip.is-current{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.trace-chip.is-comp{border-color:var(--mint);color:var(--mint);background:var(--mint-soft)}
+.order-list{display:flex;flex-wrap:wrap;gap:4px;min-height:26px}
+.order-token{font-family:var(--mono);font-size:9.5px;padding:2px 5px;border:1px solid var(--line);color:var(--muted)}
+.order-token.is-on{border-color:var(--cyan);color:var(--cyan);background:var(--cyan-soft)}
+.state-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px}
+.state-table th{font-size:8.5px;letter-spacing:.08em;color:var(--muted);font-weight:400;text-align:left;padding:3px 5px;border-bottom:1px solid var(--line)}
+.state-table td{padding:3px 5px;border-bottom:1px solid rgba(38,56,80,.55);color:var(--muted)}
+.state-table td:first-child{color:var(--ink)}
+.state-table tr.is-current td{color:var(--amber)}
+.state-table tr.is-comp td{color:var(--mint)}
+.algo-status{padding:11px 15px;border-top:1px solid var(--line);font-size:12px;line-height:1.8;color:var(--muted);background:rgba(8,17,31,.5);min-height:52px}
+.algo-status b{color:var(--ink);font-weight:500}
+.algo-status .amber{color:var(--amber)}
+.algo-status .coral{color:var(--coral)}
+.node-group .n-circle{fill:var(--night-2);stroke:var(--line-bright);stroke-width:1.5;transition:fill .2s,stroke .2s}
+.node-group .n-letter{font-family:var(--mono);font-size:14px;font-weight:600;fill:var(--ink);text-anchor:middle;dominant-baseline:middle}
+.node-group .n-meta{font-family:var(--mono);font-size:8.5px;fill:var(--muted);text-anchor:middle;transition:fill .2s}
+.node-group.is-queued .n-circle{fill:var(--cyan-soft);stroke:var(--cyan);stroke-width:2}
+.node-group.is-active .n-circle{fill:var(--cyan-soft);stroke:var(--cyan);stroke-width:2.2}
+.node-group.is-current .n-circle{fill:var(--amber-soft);stroke:var(--amber);stroke-width:2.8;filter:drop-shadow(0 0 7px rgba(244,185,66,.35))}
+.node-group.is-finished .n-circle{fill:var(--mint-soft);stroke:var(--mint);stroke-width:2}
+.node-group.is-visited .n-circle{fill:var(--mint-soft);stroke:var(--mint);stroke-width:2}
+.node-group.comp-0 .n-circle{fill:var(--amber-soft);stroke:var(--amber);stroke-width:2.2}
+.node-group.comp-1 .n-circle{fill:var(--cyan-soft);stroke:var(--cyan);stroke-width:2.2}
+.node-group.comp-2 .n-circle{fill:var(--mint-soft);stroke:var(--mint);stroke-width:2.2}
+.node-group.comp-3 .n-circle{fill:var(--violet-soft);stroke:var(--violet);stroke-width:2.2}
+.node-group.comp-0 .n-meta{fill:var(--amber)}
+.node-group.comp-1 .n-meta{fill:var(--cyan)}
+.node-group.comp-2 .n-meta{fill:var(--mint)}
+.node-group.comp-3 .n-meta{fill:var(--violet)}
+.graph-edge{stroke:var(--line-bright);stroke-width:1.5;fill:none;transition:stroke .2s,stroke-width .2s,opacity .2s}
+.graph-edge.is-active{stroke:var(--amber);stroke-width:2.8}
+.graph-edge.is-tree{stroke:var(--mint);stroke-width:2.2}
+.graph-edge.is-back{stroke:var(--coral);stroke-width:2.8}
+.graph-edge.is-cross{stroke:var(--cyan);stroke-width:1.8;opacity:.55}
+.graph-edge.is-dim{opacity:.28}
+.graph-edge.comp-0{stroke:var(--amber);stroke-width:2.2}
+.graph-edge.comp-1{stroke:var(--cyan);stroke-width:2.2}
+.graph-edge.comp-2{stroke:var(--mint);stroke-width:2.2}
+.graph-edge.comp-3{stroke:var(--violet);stroke-width:2.2}
+.code{background:#060e1a;color:var(--ink);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:11px;line-height:1.8;border:1px solid var(--line-bright)}
+.code .c{color:var(--muted)}
+.code .k{color:var(--cyan)}
+.code .n{color:var(--mint)}
+.code .w{color:var(--amber)}
+.note-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line-bright);margin-top:22px}
+.note-card{padding:clamp(18px,2.4vw,26px);border-right:1px solid var(--line);background:rgba(15,27,44,.36)}
+.note-card:last-child{border-right:0}
+.note-card .big{font-family:var(--display);font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:700;color:var(--amber);line-height:1;margin:4px 0 12px}
+.note-card h3{font-family:var(--display);font-size:19px;font-weight:700;line-height:1.35;margin-bottom:7px}
+.note-card p{font-size:12.5px;line-height:1.9;color:var(--muted)}
+.note-card p b{color:var(--ink);font-weight:600}
+.paren{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.paren b{color:var(--cyan);font-weight:500}
+.paren i{width:18px;height:1px;background:var(--line-bright);display:block}
+.condensation{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:22px}
+.comp-card{border:1px solid var(--line-bright);padding:16px;background:rgba(15,27,44,.4)}
+.comp-card .mono{color:var(--amber)}
+.comp-card h4{font-family:var(--display);font-size:19px;margin:4px 0 6px}
+.comp-card p{font-size:12px;line-height:1.8;color:var(--muted)}
+.comp-card:nth-child(2) .mono{color:var(--cyan)}
+.comp-card:nth-child(2) h4{color:var(--cyan)}
+.comp-card:nth-child(3) .mono{color:var(--mint)}
+.comp-card:nth-child(3) h4{color:var(--mint)}
+.pitfalls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}
+.pitfall{border:1px solid var(--line);padding:14px 16px;background:rgba(15,27,44,.32)}
+.pitfall b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--amber);margin-bottom:5px}
+.pitfall p{font-size:12px;line-height:1.8;color:var(--muted)}
+.quiz{border-top:1px solid var(--line-bright)}
+.quiz details{border-bottom:1px solid var(--line)}
+.quiz summary{display:grid;grid-template-columns:46px 1fr 24px;gap:12px;align-items:center;padding:17px 0;cursor:pointer;list-style:none;font-size:14px;font-weight:600;color:var(--ink)}
+.quiz summary::-webkit-details-marker{display:none}
+.quiz summary .qno{font-family:var(--mono);font-size:10px;color:var(--amber);font-weight:400}
+.quiz summary::after{content:"+";font-family:var(--mono);font-size:17px;color:var(--muted);text-align:right;transition:transform .2s}
+.quiz details[open] summary::after{transform:rotate(45deg)}
+.quiz .answer{padding:0 0 18px 58px;font-size:13px;line-height:1.9;color:var(--muted)}
+.quiz .answer b{color:var(--ink)}
+.footer{padding:34px 0 48px}
+.footer-top{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:18px}
+.footer-phrase{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:.02em}
+.footer-phrase i{display:inline-block;width:22px;height:1px;background:var(--amber);vertical-align:middle;margin:0 9px}
+.footer-top p{max-width:480px;font-size:12px;line-height:1.85;color:var(--muted)}
+.footer-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.footer-links a{border:1px solid var(--line);padding:7px 11px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.footer-links a:hover{border-color:var(--ink);color:var(--ink)}
+.footer-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:16px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted)}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+.reveal.is-in{opacity:1;transform:none}
+@media (max-width:1000px){
+  .hero-grid{grid-template-columns:1fr}
+  .sec-head{grid-template-columns:46px minmax(0,1fr)}
+  .sec-lede{grid-column:2;padding-top:0}
+  .algo-grid{grid-template-columns:1fr}
+  .graph-panel{border-right:0;border-bottom:1px solid var(--line)}
+  .note-grid,.condensation,.pitfalls{grid-template-columns:1fr}
+  .note-card{border-right:0;border-bottom:1px solid var(--line)}
+  .note-card:last-child{border-bottom:0}
+}
+@media (max-width:720px){
+  .brand span{display:none}
+  .nav{gap:16px}
+  .hero{padding-top:42px}
+  .hero h1{font-size:clamp(2.6rem,13vw,4.8rem)}
+  .sec-head{grid-template-columns:36px minmax(0,1fr);gap:14px}
+  .sec-lede{grid-column:1 / -1;padding-top:0}
+  .compare-grid{grid-template-columns:1fr}
+  .compare-card{border-right:0;border-bottom:1px solid var(--line)}
+  .compare-card:last-child{border-bottom:0}
+  .algo-top{align-items:flex-start}
+  .algo-top .controls{width:100%}
+  .tabs{width:100%}
+  .algo-grid{min-height:0}
+  .graph-legend{position:static;margin:8px;max-width:none}
+  .footer-top{flex-direction:column}
+  .quiz summary{grid-template-columns:36px 1fr 20px}
+  .quiz .answer{padding-left:48px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+<div class="progress" aria-hidden="true"><span></span></div>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top" aria-label="回到页面顶部"><b>图上行走</b><span>GRAPH TRAVERSAL / FIELD NOTE 04</span></a>
+    <nav class="nav" aria-label="页面导航">
+      <a href="#basics">两种走法</a>
+      <a href="#demo">交互演示</a>
+      <a href="#topo">拓扑</a>
+      <a href="#scc">SCC</a>
+      <a href="#detail">细节</a>
+      <a href="#quiz">自测</a>
+    </nav>
+  </div>
+</header>
+<main id="top">
+  <section class="hero" aria-labelledby="heroTitle">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Graph traversal / Four ways through a graph</div>
+          <h1 id="heroTitle">一张图，<br><em>四种</em>走法。<span class="small">BFS · DFS · 拓扑排序 · Kosaraju SCC</span></h1>
+          <p class="hero-sub">图不会自己排队。你要决定先看谁、后看谁、什么时候标记完成。<b>队列、栈、时间戳、反向图</b>——四种走法，四种完全不同的世界观。</p>
+          <div class="hero-stats" aria-label="图遍历的关键数字">
+            <div class="hero-stat"><b>O(V+E)</b><span>邻接表遍历</span></div>
+            <div class="hero-stat"><b>4</b><span>种交互模式</span></div>
+            <div class="hero-stat"><b>2</b><span>遍 Kosaraju</span></div>
+          </div>
+        </div>
+        <figure class="hero-map" aria-label="一张抽象的有向图，带一条高亮路径">
+          <svg viewBox="0 0 520 330" role="img" aria-label="抽象有向图站点图，A 到 F 的高亮路径">
+            <defs>
+              <marker id="hArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#5cc8e8"/></marker>
+              <marker id="hArrowAmber" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#f4b942"/></marker>
+            </defs>
+            <path d="M86 230 L188 120" stroke="#3c5575" stroke-width="1.5" fill="none" marker-end="url(#hArrow)"/>
+            <path d="M86 230 L188 270" stroke="#f4b942" stroke-width="2" fill="none" marker-end="url(#hArrowAmber)" class="flow-dash"/>
+            <path d="M224 120 L372 114" stroke="#3c5575" stroke-width="1.5" fill="none" marker-end="url(#hArrow)"/>
+            <path d="M224 270 L372 250" stroke="#f4b942" stroke-width="2" fill="none" marker-end="url(#hArrowAmber)"/>
+            <path d="M224 270 L340 180" stroke="#3c5575" stroke-width="1.5" fill="none" marker-end="url(#hArrow)"/>
+            <path d="M408 114 L448 210" stroke="#3c5575" stroke-width="1.5" fill="none" marker-end="url(#hArrow)"/>
+            <path d="M408 250 L448 222" stroke="#f4b942" stroke-width="2" fill="none" marker-end="url(#hArrowAmber)"/>
+            <path d="M372 114 L340 180" stroke="#f07167" stroke-width="1.5" fill="none" marker-end="url(#hArrow)"/>
+            <g>
+              <circle cx="70" cy="230" r="19" fill="#0d1727" stroke="#f4b942" stroke-width="2"/>
+              <text x="70" y="235" text-anchor="middle" font-family="Consolas,monospace" font-size="12" fill="#e9eef7">A</text>
+              <text x="70" y="262" text-anchor="middle" font-family="Consolas,monospace" font-size="8" fill="#8fa2ba">L0</text>
+            </g>
+            <g>
+              <circle cx="206" cy="120" r="18" fill="#0d1727" stroke="#5cc8e8" stroke-width="2"/>
+              <text x="206" y="125" text-anchor="middle" font-family="Consolas,monospace" font-size="11" fill="#e9eef7">B</text>
+              <text x="206" y="151" text-anchor="middle" font-family="Consolas,monospace" font-size="8" fill="#5cc8e8">L1</text>
+            </g>
+            <g>
+              <circle cx="206" cy="270" r="18" fill="#0d1727" stroke="#5cc8e8" stroke-width="2"/>
+              <text x="206" y="275" text-anchor="middle" font-family="Consolas,monospace" font-size="11" fill="#e9eef7">C</text>
+              <text x="206" y="301" text-anchor="middle" font-family="Consolas,monospace" font-size="8" fill="#5cc8e8">L1</text>
+            </g>
+            <g>
+              <circle cx="390" cy="110" r="18" fill="#0d1727" stroke="#f07167" stroke-width="1.8"/>
+              <text x="390" y="115" text-anchor="middle" font-family="Consolas,monospace" font-size="11" fill="#e9eef7">D</text>
+              <text x="390" y="141" text-anchor="middle" font-family="Consolas,monospace" font-size="8" fill="#8fa2ba">pre 3</text>
+            </g>
+            <g>
+              <circle cx="390" cy="250" r="18" fill="#0d1727" stroke="#7fe0b0" stroke-width="2"/>
+              <text x="390" y="255" text-anchor="middle" font-family="Consolas,monospace" font-size="11" fill="#e9eef7">E</text>
+              <text x="390" y="281" text-anchor="middle" font-family="Consolas,monospace" font-size="8" fill="#7fe0b0">done</text>
+            </g>
+            <g>
+              <circle cx="466" cy="216" r="18" fill="#0d1727" stroke="#7fe0b0" stroke-width="2"/>
+              <text x="466" y="221" text-anchor="middle" font-family="Consolas,monospace" font-size="11" fill="#e9eef7">F</text>
+              <text x="466" y="247" text-anchor="middle" font-family="Consolas,monospace" font-size="8" fill="#7fe0b0">comp 3</text>
+            </g>
+            <text x="270" y="88" fill="#8fa2ba" font-family="Consolas,monospace" font-size="9">tree edge</text>
+            <text x="270" y="316" fill="#f4b942" font-family="Consolas,monospace" font-size="9">BFS / 最短跳数</text>
+            <text x="300" y="176" fill="#f07167" font-family="Consolas,monospace" font-size="9">back edge</text>
+          </svg>
+          <figcaption><span>TRANSIT MAP / 有向图</span><span>QUEUE · STACK · TIME</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="basics" aria-labelledby="basicsTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">01</div>
+        <div><p class="mono">Two basic walks / 两种基本走法</p><h2 id="basicsTitle">队列向外扩散，栈向深处走</h2></div>
+        <p class="sec-lede">BFS 和 DFS 都会访问每个点、每条边一次。区别只在于：下一个访问谁？这个选择决定了层级、时间戳和能找到的结构。</p>
+      </header>
+      <div class="compare-grid reveal" data-reveal>
+        <div class="compare-card"><div class="big">BFS</div><h3>一层一层地扩散</h3><p>用<b>队列</b>保存待访问节点，先发现的先展开。它给出无权图的最短跳数，也天然适合按层处理状态。</p><p style="margin-top:8px"><b>典型用途：</b>无权最短路、社交网络几度关系、状态空间最少步数。</p></div>
+        <div class="compare-card"><div class="big">DFS</div><h3>一条路走到黑</h3><p>用<b>栈</b>（或递归）保存当前路径，发现新节点就继续深入，走不通再回溯。pre/post 时间戳能刻画子树的嵌套关系。</p><p style="margin-top:8px"><b>典型用途：</b>连通性、拓扑排序、SCC、环检测、回溯搜索。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="demo" aria-labelledby="demoTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">02</div>
+        <div><p class="mono">Interactive traversal / 交互演示</p><h2 id="demoTitle">把“下一步”交给数据结构的规则</h2></div>
+        <p class="sec-lede">切换四种模式，单步观察队列/栈、访问顺序和节点状态。图上的回边、交叉边和 SCC 颜色都会同步变化。</p>
+      </header>
+      <div class="algo-board reveal" data-reveal>
+        <div class="algo-top">
+          <div class="tabs" role="group" aria-label="选择图算法">
+            <button class="tab is-active" type="button" aria-pressed="true" data-algo="bfs">BFS</button>
+            <button class="tab" type="button" aria-pressed="false" data-algo="dfs">DFS</button>
+            <button class="tab" type="button" aria-pressed="false" data-algo="topo">拓扑排序</button>
+            <button class="tab" type="button" aria-pressed="false" data-algo="scc">Kosaraju SCC</button>
+          </div>
+          <div class="controls">
+            <button class="btn btn-primary" id="algoPlay" type="button"><span aria-hidden="true">▶</span><span>播放</span></button>
+            <button class="btn" id="algoStep" type="button">单步</button>
+            <button class="btn" id="algoReset" type="button">重置</button>
+          </div>
+        </div>
+        <div class="algo-meta">
+          <span id="algoName">BFS / 广度优先搜索</span>
+          <span id="algoStepLabel">Step 0 / 0</span>
+        </div>
+        <p class="scroll-hint">← 左右滑动查看完整图 →</p>
+        <div class="algo-grid">
+          <div class="graph-panel" tabindex="0" aria-label="图遍历画布，可横向滚动">
+            <div class="graph-badge" id="graphBadge">G^R · 反向图</div>
+            <svg id="algoGraph" viewBox="0 0 760 440" role="img" aria-label="图遍历交互演示"></svg>
+            <div class="graph-legend" aria-label="图例">
+              <span><i class="c"></i>当前</span>
+              <span><i class="v"></i>已完成</span>
+              <span><i class="b"></i>回边</span>
+              <span><i class="x"></i>交叉 / 前向</span>
+            </div>
+          </div>
+          <aside class="trace-panel">
+            <div class="trace-block">
+              <div class="trace-head"><span class="mono" id="traceTitle">Queue / 队列</span><span class="mono" id="traceCount"></span></div>
+              <div class="trace-list" id="traceList"></div>
+            </div>
+            <div class="trace-block">
+              <div class="trace-head"><span class="mono" id="orderTitle">Visit order / 访问顺序</span></div>
+              <div class="order-list" id="orderList"></div>
+            </div>
+            <div class="trace-block">
+              <div class="trace-head"><span class="mono" id="tableTitle">State / 节点状态</span></div>
+              <table class="state-table"><thead id="stateHead"></thead><tbody id="stateBody"></tbody></table>
+            </div>
+          </aside>
+        </div>
+        <p class="algo-status" id="algoStatus" aria-live="polite">选择一种遍历方式，然后单步或播放。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="topo" aria-labelledby="topoTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">03</div>
+        <div><p class="mono">Topological sort / 拓扑排序</p><h2 id="topoTitle">把有向无环图拉成一条线</h2></div>
+        <p class="sec-lede">拓扑序要求每条边都从左边指向右边。DFS 的后序正好给出逆序：最后完成的节点最先被输出。</p>
+      </header>
+      <div class="note-grid reveal" data-reveal>
+        <div class="note-card"><div class="big">DAG</div><h3>先决条件</h3><p>只有有向无环图才有拓扑序。若 DFS 遇到一条指向<b>当前栈中节点</b>的边，就发现回边，说明有环，拓扑排序失败。</p></div>
+        <div class="note-card"><div class="big">POST</div><h3>后序倒序</h3><p>DFS 完成一个节点时记录 post。一个节点完成前，它所有可达的节点都已完成，所以<b>逆后序</b>天然满足边 u→v 中 u 在 v 前。</p></div>
+        <div class="note-card"><div class="big">KAHN</div><h3>另一种写法</h3><p>不断取出入度为 0 的节点并删除其出边。若最后处理的节点数小于 V，说明剩下部分有环。两种写法复杂度都是 O(V+E)。</p></div>
+      </div>
+      <div class="code reveal" data-reveal style="margin-top:22px" aria-label="DFS 拓扑排序代码">
+<span class="c"># postorder 在 DFS 完成节点时追加</span><br>
+<span class="k">def</span> <span class="w">dfs</span>(u):<br>
+&nbsp;&nbsp;visited[u] = <span class="n">True</span><br>
+&nbsp;&nbsp;<span class="k">for</span> v <span class="k">in</span> adj[u]:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">if not</span> visited[v]:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dfs(v)<br>
+&nbsp;&nbsp;postorder.append(u)<br><br>
+<span class="c"># 逆后序就是拓扑序</span><br>
+topo = <span class="w">reversed</span>(postorder)
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="scc" aria-labelledby="sccTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">04</div>
+        <div><p class="mono">Strongly connected components / 强连通分量</p><h2 id="sccTitle">两遍 DFS，把环缩成点</h2></div>
+        <p class="sec-lede">Kosaraju 的关键不是“找一个环”，而是用反向图记录后序，再按后序递减在原图上划分 DFS 树。每一棵树恰好是一个 SCC。</p>
+      </header>
+      <div class="condensation reveal" data-reveal>
+        <div class="comp-card"><span class="mono">Pass 01</span><h4>在 G^R 上 DFS</h4><p>从每个未访问节点出发，记录完成顺序 postorder。反向图把“谁能到我”变成“我能到谁”。</p></div>
+        <div class="comp-card"><span class="mono">Pass 02</span><h4>按后序递减走 G</h4><p>在原图上按 postorder 从大到小处理节点；每棵 DFS 树就是一个 SCC。先处理“汇”分量，避免串到别的分量。</p></div>
+        <div class="comp-card"><span class="mono">Condense</span><h4>缩点得到 DAG</h4><p>把每个 SCC 缩成一个点，SCC 之间的边形成有向无环图。拓扑序、依赖分析、2-SAT 都从这里开始。</p></div>
+      </div>
+      <div class="note-grid reveal" data-reveal style="margin-top:22px">
+        <div class="note-card"><div class="big">A</div><h3>为什么反向图？</h3><p>在 G^R 上后完成的节点，往往位于原图 G 中“没有出边到其他未完成分量”的位置；按这个顺序在 G 上 DFS，就不会越过 SCC 边界。</p></div>
+        <div class="note-card"><div class="big">B</div><h3>为什么后序倒序？</h3><p>后序越大，越接近“最后完成”的节点；在 G 中从这些节点出发，DFS 只能走回本 SCC 或已经处理过的分量。</p></div>
+        <div class="note-card"><div class="big">C</div><h3>缩点之后</h3><p>同一 SCC 内任意两点互相可达；不同 SCC 之间的边只朝一个方向，否则它们会合并成更大的 SCC。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="detail" aria-labelledby="detailTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">05</div>
+        <div><p class="mono">Details / 实现细节</p><h2 id="detailTitle">同样叫 DFS，写法差一点结果就差很多</h2></div>
+        <p class="sec-lede">遍历算法的代码很短，但访问顺序、标记时机、递归深度和边的分类都容易出错。下面是最常见的几个坑。</p>
+      </header>
+      <div class="compare-grid reveal" data-reveal>
+        <div class="compare-card"><div class="big">01</div><h3>什么时候标记 visited？</h3><p>BFS 在<b>入队时</b>标记，否则同一节点可能被多个前驱重复入队；DFS 在<b>发现时</b>标记。只在出队/完成时标记会破坏复杂度。</p></div>
+        <div class="compare-card"><div class="big">02</div><h3>递归太深怎么办？</h3><p>链状图可能让递归深度达到 V。Python/C++ 都可能栈溢出；改成<b>显式栈</b>，或在允许时提高递归上限。</p></div>
+        <div class="compare-card"><div class="big">03</div><h3>边分类看什么？</h3><p>指向未访问点 → 树边；指向栈中祖先 → 回边（有环）；指向已完成点 → 前向/交叉边。DFS 的后序正是由这些信息定义的。</p></div>
+        <div class="compare-card"><div class="big">04</div><h3>遍历所有分量</h3><p>图不一定连通。DFS/SCC 要在外层循环所有节点，对每个未访问点重新启动一次；只从固定源点跑会漏掉其他分量。</p></div>
+      </div>
+      <div class="paren reveal" data-reveal aria-label="DFS 括号结构"><b>A</b><i></i><b>B</b><i></i><b>D</b><i></i><b>E</b><i></i><b>C</b><i></i><b>F</b><p style="font-size:12px;color:var(--muted);margin-top:8px">DFS 的 pre/post 像括号：子树的区间完全嵌套在父节点区间内；不相关的子树区间互不相交。这个性质是拓扑排序和 SCC 的共同基础。</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="quiz" aria-labelledby="quizTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">06</div>
+        <div><p class="mono">Self check / 自测</p><h2 id="quizTitle">三道题，检查有没有真的看懂</h2></div>
+        <p class="sec-lede">先回答，再展开。重点不是记“用队列还是栈”，而是能解释它为什么导致那个结果。</p>
+      </header>
+      <div class="quiz reveal" data-reveal>
+        <details><summary><span class="qno">01</span><span>为什么 BFS 能求无权图的最短路径？</span></summary><div class="answer"><b>因为队列按层扩展。</b> 源点距离为 0，先入队的都是距离为 1 的点，再是距离为 2 的点；一个点第一次被发现时，走的就是最少边数。</div></details>
+        <details><summary><span class="qno">02</span><span>DFS 遇到指向栈中节点的边，说明什么？</span></summary><div class="answer"><b>存在环。</b> 栈中节点是当前 DFS 路径上的祖先；从当前节点能回到祖先，就形成了一条回路。这条边被称为回边，拓扑排序也会因此失败。</div></details>
+        <details><summary><span class="qno">03</span><span>Kosaraju 为什么要在反向图上先跑一遍 DFS？</span></summary><div class="answer"><b>为了得到正确的分量处理顺序。</b> 反向图上的后序倒序保证第二遍在原图上 DFS 时，不会从一个 SCC 走到另一个还没处理的 SCC。每棵 DFS 树恰好是一个强连通分量。</div></details>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-top">
+      <div class="footer-phrase">访问<i></i>标记<i></i>回溯</div>
+      <p>图遍历的本质，是在“还没看过的部分”里做一个选择。队列选择广度，栈选择深度，时间戳选择记住先后，反向图选择重新排列世界。</p>
+    </div>
+    <div class="footer-links" aria-label="相关交互页">
+      <a href="bellman-ford.html">Bellman-Ford · 负权，也能算</a>
+      <a href="greedy.html">贪心 · 局部最优的赌注</a>
+      <a href="divide-and-conquer.html">分治 · Divide &amp; Conquer</a>
+    </div>
+    <div class="footer-bottom"><span>GRAPH TRAVERSAL / FIELD NOTE 04</span><span>SINGLE HTML · NO DEPENDENCIES</span><span>REDUCED-MOTION READY</span></div>
+  </div>
+</footer>
+<script>
+(function(){
+  "use strict";
+  const $ = function(sel, root){ return (root || document).querySelector(sel); };
+  const $$ = function(sel, root){ return Array.from((root || document).querySelectorAll(sel)); };
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  const progress = $(".progress span");
+  function updateProgress(){
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    progress.parentElement.style.setProperty("--p", p.toFixed(4));
+  }
+  window.addEventListener("scroll", updateProgress, { passive:true });
+  window.addEventListener("resize", updateProgress);
+  updateProgress();
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ document.body.classList.add("ready"); }); });
+  const revealEls = $$("[data-reveal]");
+  if (reduceMotion || !("IntersectionObserver" in window)){
+    revealEls.forEach(function(el){ el.classList.add("is-in"); });
+  } else {
+    const obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){ entry.target.classList.add("is-in"); obs.unobserve(entry.target); }
+      });
+    }, { threshold:.1, rootMargin:"0px 0px -5% 0px" });
+    revealEls.forEach(function(el){ obs.observe(el); });
+  }
+
+  /* ---------------- Graph data ---------------- */
+  const GRAPHS = {
+    walk: {
+      nodes:["A","B","C","D","E","F","G","H"],
+      source:"A",
+      pos:{
+        A:{x:85,y:220}, B:{x:230,y:85}, C:{x:230,y:355}, D:{x:390,y:85},
+        E:{x:390,y:355}, F:{x:545,y:220}, G:{x:675,y:85}, H:{x:675,y:355}
+      },
+      edges:[
+        {u:"A",v:"B"}, {u:"A",v:"C"}, {u:"B",v:"D"}, {u:"B",v:"E"},
+        {u:"C",v:"E"}, {u:"C",v:"F"}, {u:"D",v:"G"}, {u:"E",v:"G"},
+        {u:"E",v:"H"}, {u:"F",v:"H"}, {u:"G",v:"H"}, {u:"H",v:"B",cx:450,cy:15}
+      ]
+    },
+    topo: {
+      nodes:["A","B","C","D","E","F","G"],
+      source:"A",
+      pos:{
+        A:{x:85,y:220}, B:{x:230,y:95}, C:{x:230,y:345}, D:{x:390,y:95},
+        E:{x:390,y:345}, F:{x:545,y:220}, G:{x:675,y:155}
+      },
+      edges:[
+        {u:"A",v:"B"}, {u:"A",v:"C"}, {u:"B",v:"D"}, {u:"C",v:"D"},
+        {u:"C",v:"E"}, {u:"D",v:"F"}, {u:"E",v:"F"}, {u:"F",v:"G"}
+      ]
+    },
+    scc: {
+      nodes:["A","B","C","D","E","F","G","H"],
+      source:"A",
+      pos:{
+        A:{x:85,y:115}, B:{x:205,y:60}, C:{x:160,y:240}, D:{x:345,y:150},
+        E:{x:470,y:85}, F:{x:600,y:195}, G:{x:700,y:100}, H:{x:650,y:310}
+      },
+      edges:[
+        {u:"A",v:"B"}, {u:"B",v:"C"}, {u:"C",v:"A"},
+        {u:"A",v:"D"}, {u:"D",v:"E",cx:430,cy:145}, {u:"E",v:"D",cx:390,cy:90},
+        {u:"E",v:"F"}, {u:"F",v:"G"}, {u:"G",v:"H"}, {u:"H",v:"F"}
+      ]
+    }
+  };
+  const STATE_NAMES = {bfs:"BFS / 广度优先搜索", dfs:"DFS / 深度优先搜索", topo:"Topological sort / 拓扑排序", scc:"Kosaraju / 强连通分量"};
+  const ALGO_NOTE = {
+    bfs:"BFS 用队列按层扩展；第一次发现一个节点时，记录它的层数和前驱。",
+    dfs:"DFS 用栈（或递归）深入；pre/post 时间戳记录发现与完成。",
+    topo:"在 DAG 上 DFS，后序倒序就是拓扑序；回边意味着有环。",
+    scc:"Kosaraju：先在反向图上记录后序，再按后序递减在原图上划分 SCC。"
+  };
+
+  /* ---------------- Graph rendering ---------------- */
+  const algoGraph = $("#algoGraph");
+  const graphBadge = $("#graphBadge");
+  const traceTitle = $("#traceTitle");
+  const traceCount = $("#traceCount");
+  const traceList = $("#traceList");
+  const orderTitle = $("#orderTitle");
+  const orderList = $("#orderList");
+  const tableTitle = $("#tableTitle");
+  const stateHead = $("#stateHead");
+  const stateBody = $("#stateBody");
+  const algoStatus = $("#algoStatus");
+  const algoName = $("#algoName");
+  const algoStepLabel = $("#algoStepLabel");
+  const algoPlay = $("#algoPlay");
+  const algoStep = $("#algoStep");
+  const algoReset = $("#algoReset");
+  const tabs = $$("[data-algo]");
+
+  let currentAlgo = "bfs";
+  let currentGraphKey = "walk";
+  let currentGraph = GRAPHS.walk;
+  let edgeEls = [];
+  let nodeEls = {};
+  let steps = [];
+  let stepIndex = 0;
+  let playing = false;
+  let timer = null;
+
+  function makeAdj(graph){
+    const adj = {};
+    const edgeMap = {};
+    graph.nodes.forEach(function(n){ adj[n] = []; });
+    graph.edges.forEach(function(e, i){
+      adj[e.u].push({v:e.v, idx:i});
+      edgeMap[e.u + ">" + e.v] = i;
+    });
+    graph.nodes.forEach(function(n){ adj[n].sort(function(a, b){ return a.v.localeCompare(b.v) || a.idx - b.idx; }); });
+    return {adj:adj, edgeMap:edgeMap};
+  }
+  function buildGraphView(graphKey){
+    currentGraphKey = graphKey;
+    currentGraph = GRAPHS[graphKey];
+    const graph = currentGraph;
+    algoGraph.innerHTML = "";
+    const defs = document.createElementNS(SVG_NS, "defs");
+    const markers = [
+      ["tv-default", "#3c5575"], ["tv-active", "#f4b942"], ["tv-tree", "#7fe0b0"],
+      ["tv-back", "#f07167"], ["tv-cross", "#5cc8e8"], ["tv-comp0", "#f4b942"],
+      ["tv-comp1", "#5cc8e8"], ["tv-comp2", "#7fe0b0"], ["tv-comp3", "#c9a7f0"]
+    ];
+    markers.forEach(function(item){
+      const marker = document.createElementNS(SVG_NS, "marker");
+      marker.setAttribute("id", item[0]);
+      marker.setAttribute("markerWidth", "7");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("refX", "6");
+      marker.setAttribute("refY", "3.5");
+      marker.setAttribute("orient", "auto");
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute("d", "M0,0 L7,3.5 L0,7 Z");
+      path.setAttribute("fill", item[1]);
+      marker.appendChild(path);
+      defs.appendChild(marker);
+    });
+    algoGraph.appendChild(defs);
+    const edgeLayer = document.createElementNS(SVG_NS, "g");
+    const nodeLayer = document.createElementNS(SVG_NS, "g");
+    algoGraph.appendChild(edgeLayer);
+    algoGraph.appendChild(nodeLayer);
+
+    edgeEls = graph.edges.map(function(edge){
+      const a = graph.pos[edge.u], b = graph.pos[edge.v];
+      const path = document.createElementNS(SVG_NS, "path");
+      let forward, reverse;
+      if (edge.cx != null){
+        forward = "M" + a.x + " " + a.y + " Q" + edge.cx + " " + edge.cy + " " + b.x + " " + b.y;
+        reverse = "M" + b.x + " " + b.y + " Q" + edge.cx + " " + edge.cy + " " + a.x + " " + a.y;
+      } else {
+        forward = "M" + a.x + " " + a.y + " L" + b.x + " " + b.y;
+        reverse = "M" + b.x + " " + b.y + " L" + a.x + " " + a.y;
+      }
+      path.setAttribute("d", forward);
+      path.setAttribute("class", "graph-edge");
+      path.setAttribute("marker-end", "url(#tv-default)");
+      edgeLayer.appendChild(path);
+      return {forward:forward, reverse:reverse, path:path};
+    });
+    nodeEls = {};
+    graph.nodes.forEach(function(name){
+      const p = graph.pos[name];
+      const g = document.createElementNS(SVG_NS, "g");
+      g.setAttribute("class", "node-group");
+      const circle = document.createElementNS(SVG_NS, "circle");
+      circle.setAttribute("cx", p.x); circle.setAttribute("cy", p.y); circle.setAttribute("r", "22");
+      circle.setAttribute("class", "n-circle");
+      const letter = document.createElementNS(SVG_NS, "text");
+      letter.setAttribute("x", p.x); letter.setAttribute("y", p.y + 1);
+      letter.setAttribute("class", "n-letter"); letter.textContent = name;
+      const meta = document.createElementNS(SVG_NS, "text");
+      meta.setAttribute("x", p.x); meta.setAttribute("y", p.y + 36);
+      meta.setAttribute("class", "n-meta"); meta.textContent = "";
+      g.appendChild(circle); g.appendChild(letter); g.appendChild(meta);
+      nodeLayer.appendChild(g);
+      nodeEls[name] = {group:g, meta:meta};
+    });
+  }
+
+  function edgeMarker(state){
+    if (state === "active") return "tv-active";
+    if (state === "tree") return "tv-tree";
+    if (state === "back") return "tv-back";
+    if (state === "cross") return "tv-cross";
+    if (state && state.indexOf("comp-") === 0) return "tv-comp" + state.slice(5);
+    return "tv-default";
+  }
+  function renderGraph(graph, snapshot){
+    edgeEls.forEach(function(els, i){
+      const state = snapshot.edges[i] || "default";
+      els.path.setAttribute("d", snapshot.reversed ? els.reverse : els.forward);
+      let cls = "graph-edge";
+      if (state.indexOf("comp-") === 0) cls += " " + state;
+      else if (state !== "default") cls += " is-" + state;
+      els.path.setAttribute("class", cls);
+      els.path.setAttribute("marker-end", "url(#" + edgeMarker(state) + ")");
+    });
+    graph.nodes.forEach(function(name){
+      const state = snapshot.nodes[name] || "unvisited";
+      const comp = snapshot.nodeComps && snapshot.nodeComps[name] != null ? snapshot.nodeComps[name] : null;
+      const classes = ["node-group"];
+      if (comp != null) classes.push("comp-" + comp);
+      if (state !== "unvisited") classes.push("is-" + state);
+      nodeEls[name].group.setAttribute("class", classes.join(" "));
+      nodeEls[name].meta.textContent = metaFor(name, snapshot);
+    });
+    graphBadge.classList.toggle("is-on", !!snapshot.reversed);
+    algoGraph.setAttribute("aria-label", snapshot.message);
+  }
+  function metaFor(name, snapshot){
+    if (snapshot.mode === "bfs"){
+      return snapshot.level && snapshot.level[name] != null ? "L" + snapshot.level[name] : "";
+    }
+    if (snapshot.mode === "dfs" || snapshot.mode === "topo"){
+      const pre = snapshot.pre ? snapshot.pre[name] : null;
+      const post = snapshot.post ? snapshot.post[name] : null;
+      if (pre != null && post != null) return pre + "/" + post;
+      if (pre != null) return "pre " + pre;
+      return "";
+    }
+    if (snapshot.mode === "scc"){
+      if (snapshot.compOf && snapshot.compOf[name] != null) return "C" + (snapshot.compOf[name] + 1);
+      if (snapshot.phase === 1 && snapshot.finishIndex && snapshot.finishIndex[name] != null) return "#" + snapshot.finishIndex[name];
+      return "";
+    }
+    return "";
+  }
+
+  /* ---------------- Snapshot helpers ---------------- */
+  function nodesMap(graph, states){
+    const out = {};
+    graph.nodes.forEach(function(n){ out[n] = states[n] || "unvisited"; });
+    return out;
+  }
+  function edgesMap(graph, states){
+    const out = {};
+    graph.edges.forEach(function(_, i){ out[i] = states[i] || "default"; });
+    return out;
+  }
+  function makeSnapshot(graph, cfg){
+    return {
+      nodes: nodesMap(graph, cfg.nodes || {}),
+      nodeComps: Object.assign({}, cfg.nodeComps || {}),
+      edges: edgesMap(graph, cfg.edges || {}),
+      queue: (cfg.queue || []).slice(),
+      stack: (cfg.stack || []).slice(),
+      order: (cfg.order || []).slice(),
+      postorder: (cfg.postorder || []).slice(),
+      pre: Object.assign({}, cfg.pre || {}),
+      post: Object.assign({}, cfg.post || {}),
+      level: Object.assign({}, cfg.level || {}),
+      parent: Object.assign({}, cfg.parent || {}),
+      components: (cfg.components || []).map(function(c){ return c.slice(); }),
+      compOf: Object.assign({}, cfg.compOf || {}),
+      reversed: !!cfg.reversed,
+      phase: cfg.phase || 0,
+      mode: cfg.mode || "",
+      message: cfg.message || "",
+      topoOrder: (cfg.topoOrder || []).slice(),
+      finishIndex: Object.assign({}, cfg.finishIndex || {})
+    };
+  }
+
+  /* ---------------- BFS ---------------- */
+  function buildBFS(graph){
+    const packed = makeAdj(graph);
+    const adj = packed.adj;
+    const stepsOut = [];
+    const queue = [graph.source];
+    const discovered = {};
+    const visited = {};
+    const level = {};
+    const parent = {};
+    discovered[graph.source] = true;
+    level[graph.source] = 0;
+    const treeEdges = new Set();
+    function snap(message, current, activeEdges){
+      const ns = {};
+      graph.nodes.forEach(function(n){
+        if (n === current) ns[n] = "current";
+        else if (visited[n]) ns[n] = "visited";
+        else if (queue.indexOf(n) >= 0) ns[n] = "queued";
+        else ns[n] = "unvisited";
+      });
+      const es = {};
+      graph.edges.forEach(function(_, i){
+        if (activeEdges.indexOf(i) >= 0) es[i] = "active";
+        else if (treeEdges.has(i)) es[i] = "tree";
+        else es[i] = "default";
+      });
+      stepsOut.push(makeSnapshot(graph, {
+        nodes:ns, edges:es, queue:queue, order:Object.keys(visited), level:level, parent:parent,
+        mode:"bfs", message:message
+      }));
+    }
+    snap("源点 " + graph.source + " 入队。BFS 从距离 0 开始向外扩散。", "", []);
+    while (queue.length){
+      const u = queue.shift();
+      visited[u] = true;
+      const activeEdges = [];
+      const found = [];
+      adj[u].forEach(function(item){
+        const v = item.v;
+        if (!discovered[v]){
+          discovered[v] = true;
+          parent[v] = u;
+          level[v] = level[u] + 1;
+          queue.push(v);
+          treeEdges.add(item.idx);
+          activeEdges.push(item.idx);
+          found.push(v);
+        }
+      });
+      const order = graph.nodes.filter(function(n){ return visited[n]; });
+      snap("出队 " + u + "，发现 " + (found.length ? found.join("、") : "没有新节点") + "；队列：" + (queue.length ? queue.join("、") : "空") + "。", u, activeEdges);
+    }
+    snap("BFS 完成。访问顺序 " + graph.nodes.filter(function(n){ return visited[n]; }).join(" → ") + "；每个节点的层级就是无权最短距离。", "", []);
+    return stepsOut;
+  }
+
+  /* ---------------- DFS / topological ---------------- */
+  function buildDFS(graph, mode){
+    const packed = makeAdj(graph);
+    const adj = packed.adj;
+    const stepsOut = [];
+    const visited = {};
+    const active = new Set();
+    const stack = [];
+    const pre = {};
+    const post = {};
+    const parent = {};
+    const treeEdges = new Set();
+    const specialEdges = {};
+    const preorder = [];
+    const postorder = [];
+    let time = 1;
+    let hasCycle = false;
+    function snap(current, message, currentEdge, extra){
+      const ns = {};
+      graph.nodes.forEach(function(n){
+        if (n === current) ns[n] = "current";
+        else if (active.has(n)) ns[n] = "active";
+        else if (visited[n]) ns[n] = "finished";
+        else ns[n] = "unvisited";
+      });
+      const es = {};
+      graph.edges.forEach(function(_, i){
+        if (specialEdges[i]) es[i] = specialEdges[i];
+        else if (i === currentEdge) es[i] = "active";
+        else if (treeEdges.has(i)) es[i] = "tree";
+        else es[i] = "default";
+      });
+      stepsOut.push(makeSnapshot(graph, Object.assign({
+        nodes:ns, edges:es, stack:stack, order:preorder, postorder:postorder,
+        pre:pre, post:post, parent:parent, mode:mode, message:message
+      }, extra || {})));
+    }
+    function visit(u){
+      visited[u] = true;
+      active.add(u);
+      stack.push(u);
+      pre[u] = time++;
+      preorder.push(u);
+      snap(u, "发现 " + u + "：pre[" + u + "] = " + pre[u] + "，入栈。");
+      adj[u].forEach(function(item){
+        const v = item.v;
+        if (!visited[v]){
+          treeEdges.add(item.idx);
+          parent[v] = u;
+          visit(v);
+        } else if (active.has(v)){
+          specialEdges[item.idx] = "back";
+          hasCycle = true;
+          snap(u, "检查 " + u + "→" + v + "：v 还在栈中 → 回边，发现环。", item.idx);
+        } else {
+          specialEdges[item.idx] = "cross";
+          snap(u, "检查 " + u + "→" + v + "：v 已完成 → 交叉/前向边，跳过。", item.idx);
+        }
+      });
+      active.delete(u);
+      stack.pop();
+      post[u] = time++;
+      postorder.push(u);
+      snap(u, "完成 " + u + "：post[" + u + "] = " + post[u] + "，出栈。");
+    }
+    snap("", "从 " + graph.source + " 开始 DFS。栈为空，所有节点未访问。", null, {});
+    visit(graph.source);
+    graph.nodes.forEach(function(n){ if (!visited[n]) visit(n); });    if (mode === "topo"){
+      if (hasCycle){
+        snap("", "存在回边，无法拓扑排序。", null, {});
+      } else {
+        const topoOrder = postorder.slice().reverse();
+        snap("", "DFS 完成。后序倒序就是一个拓扑序：" + topoOrder.join(" → ") + "。", null, {topoOrder:topoOrder});
+      }
+    } else {
+      snap("", "DFS 完成。pre/post 构成括号结构：pre[u] < post[u]，子树区间嵌套或不相交。", null, {});
+    }
+    return stepsOut;
+  }
+
+  /* ---------------- Kosaraju SCC ---------------- */
+  function buildSCC(graph){
+    const packed = makeAdj(graph);
+    const adj = packed.adj;
+    const revAdj = {};
+    graph.nodes.forEach(function(n){ revAdj[n] = []; });
+    graph.edges.forEach(function(e, i){
+      revAdj[e.v].push({v:e.u, idx:i});
+    });
+    graph.nodes.forEach(function(n){ revAdj[n].sort(function(a, b){ return a.v.localeCompare(b.v) || a.idx - b.idx; }); });
+    const stepsOut = [];
+    const finishIndex = {};
+    const postorder = [];
+    const stack = [];
+    const active = new Set();
+    const visited = {};
+    const treeEdges = new Set();
+    function snapPhase1(current, message, extra){
+      const ns = {};
+      graph.nodes.forEach(function(n){
+        if (n === current) ns[n] = "current";
+        else if (active.has(n)) ns[n] = "active";
+        else if (visited[n]) ns[n] = "finished";
+        else ns[n] = "unvisited";
+      });
+      const es = {};
+      graph.edges.forEach(function(_, i){
+        if (treeEdges.has(i)) es[i] = "tree";
+        else es[i] = "default";
+      });
+      stepsOut.push(makeSnapshot(graph, Object.assign({
+        nodes:ns, edges:es, stack:stack, order:postorder, postorder:postorder,
+        mode:"scc", phase:1, reversed:true, finishIndex:finishIndex, message:message
+      }, extra || {})));
+    }
+    function visit1(u){
+      visited[u] = true;
+      active.add(u);
+      stack.push(u);
+      snapPhase1(u, "第一遍 G^R：访问 " + u + "，入栈。");
+      revAdj[u].forEach(function(item){
+        if (!visited[item.v]){
+          treeEdges.add(item.idx);
+          visit1(item.v);
+        }
+      });
+      active.delete(u);
+      stack.pop();
+      postorder.push(u);
+      finishIndex[u] = postorder.length;
+      snapPhase1(u, "第一遍 G^R：完成 " + u + "，后序追加，当前位置 #" + postorder.length + "。");
+    }
+    snapPhase1("", "第一遍：在反向图 G^R 上 DFS，记录每个节点的完成顺序（后序）。", {});
+    graph.nodes.forEach(function(n){ if (!visited[n]) visit1(n); });
+    snapPhase1("", "第一遍完成。后序 = " + postorder.join(" → ") + "。接下来按它的倒序在原图上 DFS。", {});
+
+    // Phase 2
+    const visited2 = {};
+    const compOf = {};
+    const components = [];
+    const processOrder = postorder.slice().reverse();
+    function edgesForComponents(){
+      const es = {};
+      graph.edges.forEach(function(e, i){
+        const cu = compOf[e.u], cv = compOf[e.v];
+        if (cu != null && cv != null && cu === cv) es[i] = "comp-" + cu;
+        else if (cu != null || cv != null) es[i] = "dim";
+        else es[i] = "default";
+      });
+      return es;
+    }
+    function snapPhase2(message, current, comps){
+      const ns = {};
+      graph.nodes.forEach(function(n){ ns[n] = "unvisited"; });
+      const es = edgesForComponents();
+      stepsOut.push(makeSnapshot(graph, {
+        nodes:ns, nodeComps:compOf, edges:es, order:processOrder, postorder:postorder,
+        mode:"scc", phase:2, reversed:false, finishIndex:finishIndex,
+        components:components, compOf:compOf, message:message
+      }));
+    }
+    snapPhase2("第二遍：在原图 G 上按后序倒序处理节点：" + processOrder.join(" → ") + "。", "", components);
+    processOrder.forEach(function(start){
+      if (visited2[start]) return;
+      const comp = [];
+      const localStack = [start];
+      visited2[start] = true;
+      while (localStack.length){
+        const u = localStack.pop();
+        comp.push(u);
+        adj[u].forEach(function(item){
+          if (!visited2[item.v]){
+            visited2[item.v] = true;
+            localStack.push(item.v);
+          }
+        });
+      }
+      const idx = components.length;
+      components.push(comp);
+      comp.forEach(function(n){ compOf[n] = idx; });
+      snapPhase2("从 " + start + " 出发，第二遍 DFS 找到 SCC {" + comp.join(", ") + "}；该分量整体染成 C" + (idx + 1) + "。", start, components);
+    });
+    snapPhase2("Kosaraju 完成。共找到 " + components.length + " 个强连通分量；把每个分量缩成一个点，就得到一张 DAG。", "", components);
+    return stepsOut;
+  }
+
+  /* ---------------- Rendering panels ---------------- */
+  function updatePlayButton(){
+    const spans = algoPlay.querySelectorAll("span");
+    if (playing){ spans[0].textContent = "❚❚"; spans[1].textContent = "暂停"; }
+    else if (stepIndex >= steps.length - 1){ spans[0].textContent = "↻"; spans[1].textContent = "重播"; }
+    else { spans[0].textContent = "▶"; spans[1].textContent = "播放"; }
+  }
+  function clearTimer(){ if (timer !== null){ window.clearTimeout(timer); timer = null; } }
+  function pauseAlgo(){ playing = false; clearTimer(); updatePlayButton(); }
+  function renderPanels(snapshot){
+    // trace list
+    let items = [];
+    if (snapshot.mode === "bfs"){
+      traceTitle.textContent = "Queue / 队列";
+      items = snapshot.queue.map(function(n){ return {text:n, cls: n === snapshot.current ? "is-current" : ""}; });
+      traceCount.textContent = snapshot.queue.length + " 项";
+    } else if (snapshot.mode === "dfs" || snapshot.mode === "topo"){
+      traceTitle.textContent = "Stack / DFS 栈";
+      items = snapshot.stack.map(function(n){ return {text:n, cls: n === snapshot.current ? "is-current" : ""}; });
+      traceCount.textContent = snapshot.stack.length + " 项";
+    } else if (snapshot.phase === 1){
+      traceTitle.textContent = "Stack / G^R 栈";
+      items = snapshot.stack.map(function(n){ return {text:n}; });
+      traceCount.textContent = snapshot.stack.length + " 项";
+    } else {
+      traceTitle.textContent = "Components / 已找到";
+      items = snapshot.components.map(function(c, i){ return {text:"C" + (i + 1) + " {" + c.join(",") + "}", cls:"is-comp"}; });
+      traceCount.textContent = snapshot.components.length + " 个";
+    }
+    const tFrag = document.createDocumentFragment();
+    if (!items.length){
+      const chip = document.createElement("span"); chip.className = "trace-chip is-empty"; chip.textContent = "空";
+      tFrag.appendChild(chip);
+    } else {
+      items.forEach(function(item){
+        const chip = document.createElement("span");
+        chip.className = "trace-chip " + (item.cls || "");
+        chip.textContent = item.text;
+        tFrag.appendChild(chip);
+      });
+    }
+    traceList.replaceChildren(tFrag);
+
+    // order tokens
+    let orderItems = [];
+    if (snapshot.mode === "bfs"){ orderTitle.textContent = "Visit order / 访问顺序"; orderItems = snapshot.order; }
+    else if (snapshot.mode === "topo"){
+      orderTitle.textContent = snapshot.topoOrder.length ? "Topo order / 拓扑序" : "Postorder / 后序";
+      orderItems = snapshot.topoOrder.length ? snapshot.topoOrder : snapshot.postorder;
+    }
+    else if (snapshot.mode === "dfs"){ orderTitle.textContent = "Preorder / 发现顺序"; orderItems = snapshot.order; }
+    else if (snapshot.phase === 1){ orderTitle.textContent = "Postorder / 后序"; orderItems = snapshot.postorder; }
+    else { orderTitle.textContent = "Process order / 后序倒序"; orderItems = snapshot.order; }
+    const oFrag = document.createDocumentFragment();
+    if (!orderItems.length){
+      const empty = document.createElement("span"); empty.className = "order-token"; empty.textContent = "—"; oFrag.appendChild(empty);
+    } else {
+      orderItems.forEach(function(n){
+        const token = document.createElement("span");
+        token.className = "order-token is-on";
+        token.textContent = n;
+        oFrag.appendChild(token);
+      });
+    }
+    orderList.replaceChildren(oFrag);
+
+    // table
+    let head = [];
+    let rows = [];
+    if (snapshot.mode === "bfs"){
+      tableTitle.textContent = "Level / 层级";
+      head = ["点", "层级", "prev"];
+      rows = currentGraph.nodes.map(function(n){
+        return {cells:[n, snapshot.level[n] != null ? "L" + snapshot.level[n] : "—", snapshot.parent[n] || "—"], current:n === snapshot.current};
+      });
+    } else if (snapshot.mode === "dfs" || snapshot.mode === "topo"){
+      tableTitle.textContent = "pre / post";
+      head = ["点", "pre", "post"];
+      rows = currentGraph.nodes.map(function(n){
+        return {cells:[n, snapshot.pre[n] != null ? String(snapshot.pre[n]) : "—", snapshot.post[n] != null ? String(snapshot.post[n]) : "—"], current:n === snapshot.current};
+      });
+    } else if (snapshot.phase === 1){
+      tableTitle.textContent = "Finish / 完成序";
+      head = ["点", "完成序"];
+      rows = currentGraph.nodes.map(function(n){
+        return {cells:[n, snapshot.finishIndex[n] != null ? "#" + snapshot.finishIndex[n] : "—"], current:n === snapshot.current};
+      });
+    } else {
+      tableTitle.textContent = "SCC / 所属分量";
+      head = ["点", "SCC"];
+      rows = currentGraph.nodes.map(function(n){
+        return {cells:[n, snapshot.compOf[n] != null ? "C" + (snapshot.compOf[n] + 1) : "—"], comp:snapshot.compOf[n] != null};
+      });
+    }
+    const hFrag = document.createDocumentFragment();
+    const trh = document.createElement("tr");
+    head.forEach(function(text){ const th = document.createElement("th"); th.textContent = text; trh.appendChild(th); });
+    hFrag.appendChild(trh); stateHead.replaceChildren(hFrag);
+    const bFrag = document.createDocumentFragment();
+    rows.forEach(function(row){
+      const tr = document.createElement("tr");
+      if (row.current) tr.classList.add("is-current");
+      if (row.comp) tr.classList.add("is-comp");
+      row.cells.forEach(function(text){ const td = document.createElement("td"); td.textContent = text; tr.appendChild(td); });
+      bFrag.appendChild(tr);
+    });
+    stateBody.replaceChildren(bFrag);
+  }
+  function renderStep(){
+    const snapshot = steps[stepIndex];
+    renderGraph(currentGraph, snapshot);
+    renderPanels(snapshot);
+    algoStatus.textContent = snapshot.message;
+    algoStepLabel.textContent = "Step " + stepIndex + " / " + (steps.length - 1) + (snapshot.phase ? " · Phase " + snapshot.phase : "");
+    updatePlayButton();
+  }
+  function resetAlgo(){
+    pauseAlgo();
+    if (currentAlgo === "bfs"){
+      buildGraphView("walk");
+      steps = buildBFS(currentGraph);
+    } else if (currentAlgo === "dfs"){
+      buildGraphView("walk");
+      steps = buildDFS(currentGraph, "dfs");
+    } else if (currentAlgo === "topo"){
+      buildGraphView("topo");
+      steps = buildDFS(currentGraph, "topo");
+    } else {
+      buildGraphView("scc");
+      steps = buildSCC(currentGraph);
+    }
+    stepIndex = 0;
+    algoName.textContent = STATE_NAMES[currentAlgo];
+    algoStatus.textContent = ALGO_NOTE[currentAlgo];
+    renderStep();
+    updatePlayButton();
+  }
+  function stepAlgo(){
+    if (stepIndex >= steps.length - 1){ pauseAlgo(); return; }
+    stepIndex += 1;
+    renderStep();
+    if (stepIndex >= steps.length - 1) pauseAlgo();
+  }
+  function playAlgo(){
+    if (playing){ pauseAlgo(); return; }
+    if (stepIndex >= steps.length - 1){ stepIndex = 0; renderStep(); }
+    playing = true;
+    updatePlayButton();
+    const tick = function(){
+      if (!playing) return;
+      if (stepIndex >= steps.length - 1){ playing = false; updatePlayButton(); return; }
+      stepIndex += 1;
+      renderStep();
+      if (stepIndex >= steps.length - 1){ playing = false; updatePlayButton(); return; }
+      timer = window.setTimeout(tick, reduceMotion ? 120 : 620);
+    };
+    timer = window.setTimeout(tick, 100);
+  }
+  tabs.forEach(function(tab){
+    tab.addEventListener("click", function(){
+      tabs.forEach(function(t){
+        const active = t === tab;
+        t.classList.toggle("is-active", active);
+        t.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      currentAlgo = tab.getAttribute("data-algo");
+      resetAlgo();
+    });
+  });
+  algoPlay.addEventListener("click", playAlgo);
+  algoStep.addEventListener("click", function(){ pauseAlgo(); stepAlgo(); });
+  algoReset.addEventListener("click", resetAlgo);
+  resetAlgo();
+})();
+</script>
+</body>
+</html>

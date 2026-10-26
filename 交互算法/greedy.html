@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>贪心 · 局部最优的赌注</title>
+<style>
+:root{
+  --paper:#efe5d3;
+  --paper-2:#f8f1e4;
+  --ink:#241c18;
+  --muted:#6d6154;
+  --line:#c8b9a3;
+  --wine:#5b1f2a;
+  --wine-soft:#ead1d5;
+  --olive:#75834f;
+  --olive-soft:#e0e7cf;
+  --coral:#d75b47;
+  --coral-soft:#f3d3cc;
+  --board:#241f1a;
+  --cream:#f7eedf;
+  --serif:"Songti SC","SimSun","STSong","Noto Serif SC",serif;
+  --sans:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --display:"Arial Black","Arial Bold","Microsoft YaHei",sans-serif;
+  --mono:"Cascadia Mono","Consolas","SFMono-Regular","Menlo",monospace;
+  --max:1240px;
+  --pad:clamp(18px,4vw,56px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:linear-gradient(to right,rgba(36,28,24,.045) 1px,transparent 1px),linear-gradient(to bottom,rgba(36,28,24,.045) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.62),transparent 90%)}
+::selection{background:var(--wine);color:var(--cream)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+svg{display:block}
+:focus-visible{outline:2px solid var(--coral);outline-offset:3px}
+.wrap{width:min(calc(100% - 2 * var(--pad)),var(--max));margin-inline:auto}
+.mono{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);line-height:1.6}
+.tabular{font-variant-numeric:tabular-nums}
+.progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:120;pointer-events:none}
+.progress span{display:block;height:100%;background:var(--coral);transform:scaleX(var(--p,0));transform-origin:left center}
+.topbar{position:sticky;top:0;z-index:100;background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-inner{width:min(calc(100% - 2 * var(--pad)),var(--max));margin-inline:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:58px}
+.brand{display:flex;align-items:baseline;gap:11px;white-space:nowrap}
+.brand b{font-family:var(--display);font-size:17px;font-weight:900;letter-spacing:.02em}
+.brand span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--muted)}
+.nav{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid transparent;padding:4px 0;white-space:nowrap}
+.nav a:hover{color:var(--ink);border-color:var(--ink)}
+.hero{padding:clamp(42px,7vw,88px) 0 clamp(42px,6vw,70px);border-bottom:1px solid var(--ink)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(320px,.94fr);gap:clamp(28px,5vw,70px);align-items:center}
+.eyebrow{display:flex;align-items:center;gap:10px;color:var(--wine);font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.eyebrow::before{content:"";width:28px;height:1px;background:var(--wine)}
+.hero h1{font-family:var(--display);font-weight:900;font-size:clamp(2.7rem,7.2vw,5.5rem);line-height:.98;letter-spacing:-.055em;margin-top:18px}
+.hero h1 em{font-style:normal;color:var(--wine)}
+.hero h1 .small{display:block;font-family:var(--serif);font-size:.44em;font-weight:600;letter-spacing:.02em;margin-top:12px;color:var(--muted)}
+.hero-sub{max-width:640px;margin-top:22px;font-size:15.5px;line-height:1.95;color:var(--muted)}
+.hero-sub b{color:var(--ink);font-weight:600;box-shadow:inset 0 -.45em 0 var(--olive-soft)}
+.hero-stats{display:flex;flex-wrap:wrap;margin-top:32px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+.hero-stat{padding:13px 22px 13px 0;margin-right:22px;border-right:1px solid var(--line)}
+.hero-stat:last-child{border-right:0;margin-right:0}
+.hero-stat b{display:block;font-family:var(--display);font-size:1.5rem;font-weight:900;letter-spacing:-.03em}
+.hero-stat span{display:block;font-size:10.5px;color:var(--muted);margin-top:1px}
+.hero-board{border:1px solid var(--ink);background:var(--paper-2);padding:16px;position:relative;overflow:hidden}
+.hero-board::before{content:"";position:absolute;inset:0;background-image:linear-gradient(to right,rgba(91,31,42,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(91,31,42,.06) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
+.hero-board svg{position:relative;width:100%;height:auto}
+.hero-board figcaption{position:relative;display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);margin-top:10px;padding-top:9px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted)}
+.dash-move{stroke-dasharray:5 7;animation:dashmove 5s linear infinite}
+@keyframes dashmove{to{stroke-dashoffset:-72}}
+.section{padding:clamp(52px,7vw,88px) 0;border-bottom:1px solid var(--line)}
+.sec-head{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(230px,340px);gap:24px;align-items:start;margin-bottom:clamp(28px,4vw,46px)}
+.sec-no{font-family:var(--mono);font-size:11px;color:var(--coral);padding-top:7px;border-top:1px solid var(--ink)}
+.sec-head h2{font-family:var(--serif);font-size:clamp(1.9rem,3.6vw,3.2rem);font-weight:600;line-height:1.18;letter-spacing:-.02em;margin-top:8px}
+.sec-lede{font-size:13.5px;line-height:1.9;color:var(--muted);padding-top:24px}
+.card{border:1px solid var(--ink);background:color-mix(in srgb,var(--paper-2) 58%,transparent);padding:clamp(18px,2.4vw,26px)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}
+.card-head .mono{color:var(--wine)}
+.btn{appearance:none;border:1px solid var(--ink);background:transparent;padding:9px 14px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;cursor:pointer;transition:background .18s,color .18s,border-color .18s}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.btn-primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn-primary:hover{background:var(--wine);border-color:var(--wine);color:var(--cream)}
+.btn-coral{background:var(--coral);border-color:var(--coral);color:var(--cream)}
+.btn-coral:hover{background:var(--ink);border-color:var(--ink)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pass-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--ink)}
+.pass-card{padding:clamp(18px,2.5vw,28px);border-right:1px solid var(--line);background:color-mix(in srgb,var(--paper-2) 40%,transparent)}
+.pass-card:last-child{border-right:0}
+.pass-card .big{font-family:var(--display);font-size:clamp(1.8rem,4vw,2.8rem);font-weight:900;color:var(--wine);line-height:1;margin:5px 0 14px}
+.pass-card h3{font-family:var(--serif);font-size:21px;font-weight:600;line-height:1.35;margin-bottom:8px}
+.pass-card p{font-size:12.5px;line-height:1.9;color:var(--muted)}
+.pass-card p b{color:var(--ink);font-weight:600}
+.scheduler{border:1px solid var(--ink);background:color-mix(in srgb,var(--paper-2) 54%,transparent)}
+.sched-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.sched-top .mono{color:var(--wine)}
+.strategy-group{display:flex;flex-wrap:wrap;gap:6px}
+.strategy-group .btn{font-size:10px;padding:7px 10px}
+.strategy-group .btn.is-active{background:var(--wine);border-color:var(--wine);color:var(--cream)}
+.sched-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;color:var(--muted)}
+.sched-meta b{font-size:13px;color:var(--ink);font-weight:500;margin-left:4px}
+.sched-meta .good{color:var(--olive)}
+.sched-meta .bad{color:var(--coral)}
+.order-chips{display:flex;gap:5px;overflow-x:auto;padding:10px 16px;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.order-chip{flex:0 0 auto;border:1px solid var(--line);background:var(--paper);padding:3px 7px;font-family:var(--mono);font-size:9.5px;color:var(--muted);white-space:nowrap}
+.order-chip.is-current{background:var(--coral);border-color:var(--coral);color:var(--cream)}
+.order-chip.is-selected{background:var(--olive-soft);border-color:var(--olive);color:var(--ink)}
+.order-chip.is-selected.is-current{background:var(--coral);border-color:var(--coral);color:var(--cream)}
+.order-chip.is-rejected{text-decoration:line-through;opacity:.5}
+.scroll-hint{display:none}
+@media (max-width:720px){.scroll-hint{display:block;margin:0;padding:8px 16px 0;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--muted)}.scroll-hint.on-dark{color:rgba(247,238,223,.55)}}
+.timeline-scroll{overflow-x:auto;scrollbar-width:thin;padding:14px 16px 18px}
+.timeline{min-width:760px}
+.axis-row{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;align-items:end;margin-bottom:6px}
+.axis-track{position:relative;height:20px;border-bottom:1px solid var(--line)}
+.axis-tick{position:absolute;bottom:0;transform:translateX(-50%);font-family:var(--mono);font-size:9px;color:var(--muted)}
+.iv-row{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;align-items:center;min-height:30px;border-top:1px solid rgba(200,185,163,.4)}
+.iv-label{display:flex;align-items:baseline;gap:6px;font-family:var(--mono);font-size:11px;padding:5px 0}
+.iv-label b{font-weight:600;color:var(--ink)}
+.iv-label span{font-size:9px;color:var(--muted)}
+.iv-label .opt-badge{display:none;font-family:var(--mono);font-size:8px;letter-spacing:.05em;color:var(--olive);border:1px solid var(--olive);padding:1px 3px;margin-left:auto}
+.iv-row.is-opt .opt-badge{display:inline-block}
+.iv-track{position:relative;height:28px;background-image:repeating-linear-gradient(to right,rgba(36,28,24,.08) 0 1px,transparent 1px 6.25%);background-size:100% 100%}
+.iv-bar{position:absolute;top:4px;height:20px;background:var(--paper-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;overflow:hidden;white-space:nowrap;transition:background .2s,opacity .2s,border-color .2s}
+.iv-bar::after{content:"";position:absolute;inset:0;border:1px solid rgba(36,28,24,.2);pointer-events:none}
+.iv-row.is-selected .iv-bar{background:var(--olive)}
+.iv-row.is-rejected .iv-bar{background:transparent;color:var(--muted);border:1px dashed var(--line);opacity:.68}
+.iv-row.is-rejected .iv-bar::after{border:0}
+.iv-row.is-current .iv-bar{background:var(--coral);color:var(--cream);box-shadow:0 0 0 2px var(--coral-soft)}
+.iv-row.is-current .iv-label b{color:var(--coral)}
+.iv-row.is-current .iv-label span{color:var(--coral)}
+.sched-bottom{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);border-top:1px solid var(--line)}
+.sched-log{padding:14px 16px;border-right:1px solid var(--line);min-width:0}
+.sched-log ol{max-height:150px;overflow:auto;scrollbar-width:thin;margin-top:6px}
+.sched-log li{display:grid;grid-template-columns:30px 1fr;gap:8px;padding:4px 0;border-bottom:1px solid rgba(200,185,163,.4);font-family:var(--mono);font-size:10px;line-height:1.6;color:var(--muted)}
+.sched-log li .tag{color:var(--wine)}
+.sched-log li.is-reject{color:var(--coral)}
+.sched-result{padding:14px 16px;min-width:0}
+.sched-result .big{font-family:var(--display);font-size:clamp(1.6rem,3.4vw,2.4rem);font-weight:900;line-height:1.1;margin:4px 0 6px}
+.sched-result .big.good{color:var(--olive)}
+.sched-result .big.bad{color:var(--coral)}
+.sched-result .big .good{color:var(--olive)}
+.sched-result .big .bad{color:var(--coral)}
+.sched-result p{font-size:12px;line-height:1.8;color:var(--muted)}
+.sched-status{margin:0 16px 14px;padding:10px 12px;border-left:2px solid var(--coral);background:var(--coral-soft);font-size:12px;line-height:1.8;color:var(--ink)}
+.huff-board{border:1px solid var(--ink);background:var(--board);color:var(--cream);overflow:hidden}
+.huff-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-bottom:1px solid rgba(247,238,223,.16)}
+.huff-top .mono{color:rgba(247,238,223,.55)}
+.huff-top .controls .btn{border-color:rgba(247,238,223,.38);color:var(--cream)}
+.huff-top .controls .btn:hover{background:var(--cream);color:var(--ink);border-color:var(--cream)}
+.huff-top .controls .btn-primary{background:var(--coral);border-color:var(--coral);color:var(--cream)}
+.huff-grid{display:grid;grid-template-columns:220px minmax(0,1fr);border-bottom:1px solid rgba(247,238,223,.16)}
+.huff-queue{padding:16px;border-right:1px solid rgba(247,238,223,.16);min-width:0}
+.huff-queue .mono{color:rgba(247,238,223,.55)}
+.queue-list{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 12px}
+.qchip{border:1px solid rgba(247,238,223,.22);padding:5px 7px;font-family:var(--mono);font-size:10px;color:rgba(247,238,223,.8);display:flex;align-items:baseline;gap:5px;background:rgba(247,238,223,.04)}
+.qchip small{font-size:8px;color:rgba(247,238,223,.45)}
+.qchip.is-out{border-color:var(--coral);color:#ffb6a8;background:rgba(215,91,71,.12)}
+.qchip.is-new{border-color:var(--olive);color:var(--olive-soft);background:rgba(117,131,79,.16)}
+.merge-info{font-family:var(--mono);font-size:10px;line-height:1.8;color:rgba(247,238,223,.6);border-top:1px solid rgba(247,238,223,.14);padding-top:10px;min-height:48px}
+.merge-info b{color:var(--cream);font-weight:500}
+.huff-tree-wrap{padding:8px 10px 10px;min-width:0;overflow-x:auto;background-image:linear-gradient(to right,rgba(247,238,223,.045) 1px,transparent 1px),linear-gradient(to bottom,rgba(247,238,223,.045) 1px,transparent 1px);background-size:30px 30px;scrollbar-width:thin}
+#huffTree{width:100%;min-width:560px;height:auto}
+.huff-edge{stroke:rgba(247,238,223,.32);stroke-width:1.5}
+.huff-edge.is-new{stroke:var(--olive);stroke-width:2.2}
+.huff-edge-label{font-family:var(--mono);font-size:10px;fill:rgba(247,238,223,.58);text-anchor:middle;dominant-baseline:middle;stroke:var(--board);stroke-width:4;paint-order:stroke}
+.huff-node circle{fill:#3a3028;stroke:rgba(247,238,223,.35);stroke-width:1.4;transition:fill .2s,stroke .2s}
+.huff-node .h-label{font-family:var(--mono);font-size:15px;font-weight:600;fill:var(--cream);text-anchor:middle;dominant-baseline:middle}
+.huff-node .h-freq{font-family:var(--mono);font-size:9px;fill:rgba(247,238,223,.55);text-anchor:middle}
+.huff-node.leaf circle{fill:var(--cream);stroke:var(--ink)}
+.huff-node.leaf .h-label{fill:var(--ink)}
+.huff-node.leaf .h-freq{fill:var(--muted)}
+.huff-node.is-out circle{fill:var(--coral-soft);stroke:var(--coral);stroke-width:2.4}
+.huff-node.is-new circle{fill:var(--olive-soft);stroke:var(--olive);stroke-width:2.4}
+.huff-node.is-root circle{stroke:var(--coral);stroke-width:2}
+.huff-code{padding:14px 16px;border-top:1px solid rgba(247,238,223,.16)}
+.huff-code .mono{color:rgba(247,238,223,.55)}
+.code-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10.5px;margin-top:8px}
+.code-table th{font-size:9px;letter-spacing:.1em;color:rgba(247,238,223,.45);font-weight:400;text-align:left;padding:4px 7px;border-bottom:1px solid rgba(247,238,223,.16)}
+.code-table td{padding:4px 7px;border-bottom:1px solid rgba(247,238,223,.08);color:rgba(247,238,223,.78)}
+.code-table td:first-child{color:var(--cream)}
+.code-table .code{color:var(--coral-soft)}
+.wpl{margin-top:10px;font-family:var(--mono);font-size:11px;color:rgba(247,238,223,.65)}
+.wpl b{color:var(--olive-soft);font-size:15px;font-weight:500}
+.huff-status{padding:10px 16px 14px;font-size:12px;line-height:1.8;color:rgba(247,238,223,.7);border-top:1px solid rgba(247,238,223,.16)}
+.fail-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--ink)}
+.fail-card{padding:clamp(18px,2.4vw,28px);border-right:1px solid var(--line);background:color-mix(in srgb,var(--paper-2) 35%,transparent)}
+.fail-card:last-child{border-right:0}
+.fail-card h3{font-family:var(--serif);font-size:23px;font-weight:600;line-height:1.3;margin:4px 0 10px}
+.fail-card p{font-size:12.5px;line-height:1.9;color:var(--muted)}
+.coins{display:flex;gap:7px;align-items:center;margin:12px 0 4px;flex-wrap:wrap}
+.coin{width:34px;height:34px;border:1px solid var(--ink);border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:12px;background:var(--paper-2)}
+.coin.g{background:var(--coral-soft);border-color:var(--coral)}
+.coin.o{background:var(--olive-soft);border-color:var(--olive)}
+.fail-line{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding:8px 0;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.fail-line b{color:var(--ink);font-weight:500}
+.fail-line .bad{color:var(--coral)}
+.fail-line .good{color:var(--olive)}
+.knap-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10.5px;margin-top:10px}
+.knap-table th,.knap-table td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+.knap-table th{font-size:9px;color:var(--muted);font-weight:400;letter-spacing:.08em}
+.proof-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--ink)}
+.proof-card{padding:clamp(18px,2.4vw,28px);border-right:1px solid var(--line);background:color-mix(in srgb,var(--paper-2) 35%,transparent)}
+.proof-card:last-child{border-right:0}
+.proof-card .big{font-family:var(--display);font-size:clamp(1.6rem,3.4vw,2.6rem);font-weight:900;color:var(--coral);line-height:1;margin:4px 0 12px}
+.proof-card h3{font-family:var(--serif);font-size:20px;font-weight:600;line-height:1.35;margin-bottom:8px}
+.proof-card p{font-size:12.5px;line-height:1.9;color:var(--muted)}
+.exchange{border:1px solid var(--ink);margin-top:22px;background:var(--paper-2)}
+.exchange-head{padding:13px 16px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--wine)}
+.exchange-row{display:grid;grid-template-columns:42px 1fr;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.8;color:var(--muted)}
+.exchange-row:last-child{border-bottom:0}
+.exchange-row .n{font-family:var(--mono);font-size:10px;color:var(--coral);padding-top:3px}
+.exchange-row b{color:var(--ink);font-weight:600}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--ink);margin-top:22px}
+.compare-col{padding:clamp(18px,2.4vw,28px);border-right:1px solid var(--line)}
+.compare-col:last-child{border-right:0}
+.compare-col h3{font-family:var(--serif);font-size:24px;line-height:1.3;margin-bottom:4px}
+.compare-col .mono{color:var(--wine)}
+.compare-col ul{margin-top:12px}
+.compare-col li{font-size:12.5px;line-height:1.85;color:var(--muted);padding:7px 0;border-top:1px solid var(--line)}
+.compare-col li b{color:var(--ink);font-weight:600}
+.quiz{border-top:1px solid var(--ink)}
+.quiz details{border-bottom:1px solid var(--line)}
+.quiz summary{display:grid;grid-template-columns:46px 1fr 24px;gap:12px;align-items:center;padding:17px 0;cursor:pointer;list-style:none;font-size:14px;font-weight:600}
+.quiz summary::-webkit-details-marker{display:none}
+.quiz summary .qno{font-family:var(--mono);font-size:10px;color:var(--coral);font-weight:400}
+.quiz summary::after{content:"+";font-family:var(--mono);font-size:17px;color:var(--muted);text-align:right;transition:transform .2s}
+.quiz details[open] summary::after{transform:rotate(45deg)}
+.quiz .answer{padding:0 0 18px 58px;font-size:13px;line-height:1.9;color:var(--muted)}
+.quiz .answer b{color:var(--ink)}
+.footer{padding:34px 0 48px}
+.footer-top{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:18px}
+.footer-phrase{font-family:var(--display);font-size:20px;font-weight:900;letter-spacing:-.02em}
+.footer-phrase i{display:inline-block;width:22px;height:1px;background:var(--coral);vertical-align:middle;margin:0 9px}
+.footer-top p{max-width:480px;font-size:12px;line-height:1.85;color:var(--muted)}
+.footer-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.footer-links a{border:1px solid var(--line);padding:7px 11px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.footer-links a:hover{border-color:var(--ink);color:var(--ink)}
+.footer-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:16px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted)}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+.reveal.is-in{opacity:1;transform:none}
+@media (max-width:1000px){
+  .hero-grid{grid-template-columns:1fr}
+  .sec-head{grid-template-columns:46px minmax(0,1fr)}
+  .sec-lede{grid-column:2;padding-top:0}
+  .pass-grid,.proof-grid{grid-template-columns:1fr}
+  .pass-card,.proof-card{border-right:0;border-bottom:1px solid var(--line)}
+  .pass-card:last-child,.proof-card:last-child{border-bottom:0}
+  .huff-grid{grid-template-columns:1fr}
+  .huff-queue{border-right:0;border-bottom:1px solid rgba(247,238,223,.16)}
+  .fail-grid,.compare{grid-template-columns:1fr}
+  .fail-card,.compare-col{border-right:0;border-bottom:1px solid var(--line)}
+  .fail-card:last-child,.compare-col:last-child{border-bottom:0}
+}
+@media (max-width:720px){
+  .brand span{display:none}
+  .nav{gap:16px}
+  .hero{padding-top:42px}
+  .hero h1{font-size:clamp(2.3rem,11.5vw,4.6rem)}
+  .sec-head{grid-template-columns:36px minmax(0,1fr);gap:14px}
+  .sec-lede{grid-column:1 / -1;padding-top:0}
+  .sched-top,.huff-top{align-items:flex-start}
+  .sched-top .controls,.strategy-group{width:100%}
+  .sched-bottom{grid-template-columns:1fr}
+  .sched-log{border-right:0;border-bottom:1px solid var(--line)}
+  .timeline{min-width:700px}
+  .footer-top{flex-direction:column}
+  .quiz summary{grid-template-columns:36px 1fr 20px}
+  .quiz .answer{padding-left:48px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+<div class="progress" aria-hidden="true"><span></span></div>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top" aria-label="回到页面顶部"><b>贪心</b><span>GREEDY / FIELD NOTE 03</span></a>
+    <nav class="nav" aria-label="页面导航">
+      <a href="#pass">通行证</a>
+      <a href="#schedule">区间调度</a>
+      <a href="#huffman">Huffman</a>
+      <a href="#fail">反例</a>
+      <a href="#proof">证明</a>
+      <a href="#quiz">自测</a>
+    </nav>
+  </div>
+</header>
+<main id="top">
+  <section class="hero" aria-labelledby="heroTitle">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Greedy / Local choice, global consequence</div>
+          <h1 id="heroTitle">每一步，<br>都选眼前<em>最好</em>。<span class="small">然后呢？</span></h1>
+          <p class="hero-sub">贪心算法不回头看。它在每个路口选择当下看起来最优的方向，然后把这个选择当成既定事实。<b>有时它真的能走到全局最优，有时它会被一条闪闪发光的捷径骗进死胡同。</b></p>
+          <div class="hero-stats" aria-label="贪心的关键数字">
+            <div class="hero-stat"><b>2</b><span>张通行证</span></div>
+            <div class="hero-stat"><b>1</b><span>个交换论证</span></div>
+            <div class="hero-stat"><b>0</b><span>次回溯</span></div>
+          </div>
+        </div>
+        <figure class="hero-board" aria-label="局部最优路径进入死胡同，全局最优路径绕远到达目标">
+          <svg viewBox="0 0 520 330" role="img" aria-label="从起点出发，上方捷径通向死胡同，下方长路通向目标">
+            <defs>
+              <marker id="gArrowWine" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#5b1f2a"/></marker>
+              <marker id="gArrowOlive" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#75834f"/></marker>
+            </defs>
+            <path d="M76 236 Q170 190 274 122" stroke="#5b1f2a" stroke-width="2" fill="none" marker-end="url(#gArrowWine)"/>
+            <path d="M76 236 Q220 300 400 246" stroke="#75834f" stroke-width="2.2" fill="none" marker-end="url(#gArrowOlive)" class="dash-move"/>
+            <line x1="304" y1="82" x2="330" y2="130" stroke="#5b1f2a" stroke-width="2"/>
+            <line x1="330" y1="82" x2="304" y2="130" stroke="#5b1f2a" stroke-width="2"/>
+            <circle cx="76" cy="236" r="19" fill="#f8f1e4" stroke="#241c18" stroke-width="1.4"/>
+            <text x="76" y="241" text-anchor="middle" font-family="Consolas,monospace" font-size="12" fill="#241c18">S</text>
+            <circle cx="292" cy="108" r="18" fill="#ead1d5" stroke="#5b1f2a" stroke-width="1.5"/>
+            <text x="292" y="113" text-anchor="middle" font-family="Consolas,monospace" font-size="10" fill="#5b1f2a">8</text>
+            <text x="284" y="62" text-anchor="middle" font-family="Consolas,monospace" font-size="9" fill="#5b1f2a">局部最优</text>
+            <text x="345" y="155" text-anchor="middle" font-family="Consolas,monospace" font-size="9" fill="#d75b47">死胡同</text>
+            <circle cx="430" cy="240" r="22" fill="#e0e7cf" stroke="#75834f" stroke-width="2"/>
+            <path d="M430 230 l3 7 8 1 -6 5 2 8 -7 -4 -7 4 2 -8 -6 -5 8 -1 z" fill="#75834f"/>
+            <text x="430" y="286" text-anchor="middle" font-family="Consolas,monospace" font-size="9" fill="#75834f">全局最优</text>
+            <text x="196" y="160" fill="#5b1f2a" font-family="Consolas,monospace" font-size="10">看起来更近</text>
+            <text x="238" y="300" fill="#75834f" font-family="Consolas,monospace" font-size="10">绕一点，但能到达</text>
+          </svg>
+          <figcaption><span>LOCAL CHOICE / 不回溯</span><span>NEEDS A PROOF</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pass" aria-labelledby="passTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">01</div>
+        <div><p class="mono">Two permits / 两张通行证</p><h2 id="passTitle">贪心不是“看起来对”</h2></div>
+        <p class="sec-lede">一个贪心算法要通过两道检查：当下这一步能不能安全地选？选完之后，剩下的问题还是不是同一种问题？</p>
+      </header>
+      <div class="pass-grid reveal" data-reveal>
+        <div class="pass-card"><div class="big">01</div><h3>贪心选择性质</h3><p>存在一个全局最优解，包含当前看起来最优的那个选择。换句话说：<b>你不需要为了更好的未来，故意放弃眼前这一步。</b></p></div>
+        <div class="pass-card"><div class="big">02</div><h3>最优子结构</h3><p>做了这个选择之后，剩余部分仍然是一个同类型的最优子问题。整体最优可以由<b>局部最优 + 剩余最优</b>拼出来。</p></div>
+        <div class="pass-card"><div class="big">03</div><h3>交换论证</h3><p>证明贪心选择安全的最常用工具：拿一个最优解，把它和贪心的第一个不同选择交换，证明<b>不会变差</b>，再对剩余部分归纳。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="schedule" aria-labelledby="scheduleTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">02</div>
+        <div><p class="mono">Interval scheduling / 区间调度</p><h2 id="scheduleTitle">先结束的人，先上车</h2></div>
+        <p class="sec-lede">同一间教室、同一段时间只能安排一个活动。哪种排序策略能选到最多的不重叠区间？切换策略，单步看贪心怎么做决定。</p>
+      </header>
+      <div class="scheduler reveal" data-reveal>
+        <div class="sched-top">
+          <div class="strategy-group" role="group" aria-label="选择排序策略">
+            <button class="btn is-active" type="button" data-strategy="finish" aria-pressed="true">最早结束</button>
+            <button class="btn" type="button" data-strategy="start" aria-pressed="false">最早开始</button>
+            <button class="btn" type="button" data-strategy="duration" aria-pressed="false">最短时长</button>
+          </div>
+          <div class="controls">
+            <button class="btn btn-primary" id="schedPlay" type="button"><span aria-hidden="true">▶</span><span>播放</span></button>
+            <button class="btn" id="schedStep" type="button">单步</button>
+            <button class="btn" id="schedReset" type="button">重置</button>
+          </div>
+        </div>
+        <div class="sched-meta">
+          <span id="strategyNote">按结束时间从早到晚排序；每次选择与上一个选中区间不重叠的最早结束者。</span>
+          <span>已选 <b id="selectedCount">0</b> / 最优 <b id="optimalCount">4</b></span>
+        </div>
+        <div class="order-chips" id="orderChips" aria-label="当前策略的排序结果"></div>
+        <p class="scroll-hint">← 左右滑动查看完整时间轴 →</p>
+        <div class="timeline-scroll" tabindex="0" aria-label="活动时间轴，可横向滚动">
+          <div class="timeline">
+            <div class="axis-row"><div></div><div class="axis-track" id="axisTrack"></div></div>
+            <div id="ivRows"></div>
+          </div>
+        </div>
+        <div class="sched-bottom">
+          <div class="sched-log"><span class="mono">Decision tape / 选择记录</span><ol id="schedLog" aria-live="polite"></ol></div>
+          <div class="sched-result">
+            <span class="mono">Result / 结果</span>
+            <p class="big" id="schedBig">等待开始</p>
+            <p id="schedResult">切换策略，然后播放或单步。</p>
+          </div>
+        </div>
+        <p class="sched-status" id="schedStatus" aria-live="polite">按最早结束时间排序。点击“单步”开始选择第一个活动。</p>
+      </div>
+      <div class="note-box reveal" data-reveal style="margin-top:20px;border-top:1px solid var(--ink);padding-top:12px"><h3 style="font-family:var(--serif);font-size:19px;margin-bottom:6px">交换论证，为什么最早结束是安全的？</h3><p style="font-size:12.5px;line-height:1.85;color:var(--muted)">设贪心选的第一个活动是 g（结束最早），某个最优解的第一个活动是 o。因为 g 结束得不晚于 o，把 o 换成 g 不会和最优解后面的活动冲突，也不会减少数量。于是存在一个包含 g 的最优解；对剩下的时间区间继续归纳即可。</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="huffman" aria-labelledby="huffTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">03</div>
+        <div><p class="mono">Huffman coding / 合并最小频率</p><h2 id="huffTitle">让最常出现的字符，走最短的路</h2></div>
+        <p class="sec-lede">每次从优先队列取出频率最小的两棵树，合并成一棵新树。这个看似短视的动作，恰好构造出了最优前缀码。</p>
+      </header>
+      <div class="huff-board reveal" data-reveal>
+        <div class="huff-top">
+          <div class="demo-tag"><span class="mono">HUFFMAN / 6 LEAVES · FREQUENCIES A5 B9 C12 D13 E16 F45</span></div>
+          <div class="controls">
+            <button class="btn btn-primary" id="huffPlay" type="button"><span aria-hidden="true">▶</span><span>播放</span></button>
+            <button class="btn" id="huffStep" type="button">单步</button>
+            <button class="btn" id="huffReset" type="button">重置</button>
+          </div>
+        </div>
+        <p class="scroll-hint on-dark">← 左右滑动查看完整 Huffman 树 →</p>
+        <div class="huff-grid">
+          <div class="huff-queue">
+            <span class="mono">Priority queue / 按频率排序</span>
+            <div class="queue-list" id="huffQueue" aria-label="当前优先队列"></div>
+            <p class="merge-info" id="huffMergeInfo">等待第一次合并。</p>
+            <p class="merge-info" style="border-top:0;padding-top:0;color:rgba(247,238,223,.45)">每次取两个最小频率；合并后的新节点放回队列。频率相同的节点按名称稳定排序。</p>
+          </div>
+          <div class="huff-tree-wrap"><svg id="huffTree" viewBox="0 0 760 360" role="img" aria-label="Huffman 树逐步生长"></svg></div>
+        </div>
+        <div class="huff-code">
+          <span class="mono">Codebook / 编码表</span>
+          <div id="huffCodes"><p style="font-size:12px;color:rgba(247,238,223,.5);margin-top:8px">合并完成后生成 0/1 编码。</p></div>
+        </div>
+        <p class="huff-status" id="huffStatus" aria-live="polite">6 个叶子，优先队列按频率从小到大排列。准备取出两个最小的节点。</p>
+      </div>
+      <div class="note-box reveal" data-reveal style="margin-top:20px;border-top:1px solid var(--ink);padding-top:12px"><h3 style="font-family:var(--serif);font-size:19px;margin-bottom:6px">为什么每次合并最小的两个？</h3><p style="font-size:12.5px;line-height:1.85;color:var(--muted)">频率最低的两个字符应该待在树的最深处，这样它们的编码最长、贡献的加权路径长度最小。交换论证把“最深的两个兄弟”换成当前最小的两个频率，总成本不会增加。</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="fail" aria-labelledby="failTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">04</div>
+        <div><p class="mono">When greedy fails / 反例</p><h2 id="failTitle">看起来最划算，未必凑得出来</h2></div>
+        <p class="sec-lede">贪心的危险不在于“选错一次”，而在于它没有回头路。两个经典反例，专门用来打醒“按直觉贪”的冲动。</p>
+      </header>
+      <div class="fail-grid reveal" data-reveal>
+        <div class="fail-card">
+          <span class="mono">Counterexample 01 / 找零</span>
+          <h3>面值 1、3、4，凑 6。</h3>
+          <p>贪心先拿最大的 4，剩下 2 只能用 1+1；但最优解是 3+3。局部最大面值把后面的选择堵死了。</p>
+          <div class="coins"><span class="coin g">4</span><span class="coin g">1</span><span class="coin g">1</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted)">贪心 · 3 枚</span></div>
+          <div class="coins"><span class="coin o">3</span><span class="coin o">3</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted)">最优 · 2 枚</span></div>
+          <div class="fail-line"><span>贪心能不能证明？</span><b class="bad">不能</b></div>
+          <div class="fail-line"><span>反例已经足够</span><b class="good">是</b></div>
+        </div>
+        <div class="fail-card">
+          <span class="mono">Counterexample 02 / 0-1 背包</span>
+          <h3>容量 10，物品不可分割。</h3>
+          <p>按单位价值从高到低拿：C(4,24) → B(5,28) → 剩余 1 格，装不下 A。总价值 52；而 A+C 正好装满，总价值 54。</p>
+          <table class="knap-table" aria-label="背包物品">
+            <thead><tr><th>物品</th><th>重量</th><th>价值</th><th>单位价值</th></tr></thead>
+            <tbody>
+              <tr><td>C</td><td>4</td><td>24</td><td>6.0</td></tr>
+              <tr><td>B</td><td>5</td><td>28</td><td>5.6</td></tr>
+              <tr><td>A</td><td>6</td><td>30</td><td>5.0</td></tr>
+            </tbody>
+          </table>
+          <div class="fail-line"><span>贪心按比例</span><b class="bad">C + B = 52</b></div>
+          <div class="fail-line"><span>最优</span><b class="good">A + C = 54</b></div>
+          <div class="fail-line"><span>分数背包</span><b>贪心可行</b></div>
+        </div>
+      </div>
+      <div class="note-box reveal" data-reveal style="margin-top:20px;border-top:1px solid var(--ink);padding-top:12px"><h3 style="font-family:var(--serif);font-size:19px;margin-bottom:6px">判断口诀</h3><p style="font-size:12.5px;line-height:1.85;color:var(--muted)"><b>能证明交换后不变差，才用贪心；只能举出几个“看起来对”的例子，不算证明。</b> 找不到反例也不等于正确，考试里最稳的写法是先写贪心选择，再写交换论证或明确说明反例。</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="proof" aria-labelledby="proofTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">05</div>
+        <div><p class="mono">Proof recipe / 证明配方</p><h2 id="proofTitle">把“直觉”写成可检查的句子</h2></div>
+        <p class="sec-lede">贪心证明不需要长篇大论，但必须把“替换之后仍然可行、且不更差”说清楚。下面是一个可以直接套用的四步模板。</p>
+      </header>
+      <div class="proof-grid reveal" data-reveal>
+        <div class="proof-card"><div class="big">A</div><h3>先定义选择</h3><p>明确贪心每一步到底按什么排序、选什么。把“最早结束”写成可比较的键，而不是模糊的“看起来最好”。</p></div>
+        <div class="proof-card"><div class="big">B</div><h3>找第一个分歧</h3><p>假设 O 是一个最优解，G 是贪心解。令它们第一次做出不同选择的位置为 i，比较 O 的第 i 个选择和 G 的第 i 个选择。</p></div>
+        <div class="proof-card"><div class="big">C</div><h3>交换并检查</h3><p>把 O 中的选择换成 G 的选择，证明剩余部分仍然可行，且目标值不变差。注意处理重叠、容量、前缀码等约束。</p></div>
+      </div>
+      <div class="exchange reveal" data-reveal>
+        <div class="exchange-head">EXCHANGE ARGUMENT / 四步模板</div>
+        <div class="exchange-row"><span class="n">01</span><span><b>假设：</b>存在一个最优解 O，它和贪心解 G 在第一个选择处不同。</span></div>
+        <div class="exchange-row"><span class="n">02</span><span><b>替换：</b>把 O 的这个选择换成 G 的选择。因为 G 的选择是当前约束下最优的，替换通常不会让目标变差。</span></div>
+        <div class="exchange-row"><span class="n">03</span><span><b>可行性：</b>证明替换后仍满足所有约束（不重叠、不超容量、仍是前缀码……）。这一步最容易被跳过。</span></div>
+        <div class="exchange-row"><span class="n">04</span><span><b>归纳：</b>替换后的解仍是最优解，且与 G 的第一个选择一致；对剩余子问题重复上述论证，最终得到 G 也是最优解。</span></div>
+      </div>
+      <div class="compare reveal" data-reveal>
+        <div class="compare-col">
+          <span class="mono">Greedy</span>
+          <h3>一次决定，<br>不再回头。</h3>
+          <ul>
+            <li><b>决策</b>：每一步只选当前最优，不保留其他分支。</li>
+            <li><b>正确性</b>：必须证明贪心选择性质 + 最优子结构。</li>
+            <li><b>速度</b>：通常是排序 + 一次扫描，O(n log n) 或 O(n)。</li>
+            <li><b>典型</b>：区间调度、Huffman、最小生成树、分数背包。</li>
+          </ul>
+        </div>
+        <div class="compare-col">
+          <span class="mono">Dynamic programming</span>
+          <h3>保留选择，<br>比较所有可能。</h3>
+          <ul>
+            <li><b>决策</b>：枚举选择，保存子问题答案，必要时回溯。</li>
+            <li><b>正确性</b>：最优子结构 + 重叠子问题，靠状态转移保证。</li>
+            <li><b>速度</b>：取决于状态数 × 转移代价，可能更高。</li>
+            <li><b>典型</b>：0-1 背包、编辑距离、找零的最少硬币数。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="quiz" aria-labelledby="quizTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">06</div>
+        <div><p class="mono">Self check / 自测</p><h2 id="quizTitle">三道题，检查有没有真的看懂</h2></div>
+        <p class="sec-lede">先回答，再展开。能说出“为什么”，比记住结论更重要。</p>
+      </header>
+      <div class="quiz reveal" data-reveal>
+        <details><summary><span class="qno">01</span><span>区间调度为什么按“最早结束”排序，而不是“最早开始”？</span></summary><div class="answer"><b>最早结束给后面留下最多时间。</b> 一个活动越早结束，剩余可用区间就越长；最早开始可能选到一个很长的活动，挤掉后面多个短活动。</div></details>
+        <details><summary><span class="qno">02</span><span>Huffman 每次合并两个最小频率，依据是什么？</span></summary><div class="answer"><b>频率越低的字符应该越深。</b> 合并最小的两个会让它们成为兄弟并处在较深位置；交换论证保证把最深处的两个兄弟换成最小频率不会增加加权路径长度。</div></details>
+        <details><summary><span class="qno">03</span><span>一个贪心算法通过了所有手写样例，可以认为它正确吗？</span></summary><div class="answer"><b>不可以。</b> 样例只能说明它在这几个输入上没出错。需要证明贪心选择性质与最优子结构，或者给出反例；找不到反例不等于正确。</div></details>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-top">
+      <div class="footer-phrase">选择<i></i>证明<i></i>反例</div>
+      <p>贪心算法最迷人的地方，是它把复杂的全局问题压缩成了一次次干净的选择；最危险的地方，也恰好是它不再回头。</p>
+    </div>
+    <div class="footer-links" aria-label="相关交互页">
+      <a href="bellman-ford.html">Bellman-Ford · 负权，也能算</a>
+      <a href="graph-traversal.html">图上行走 · BFS / DFS / 拓扑 / SCC</a>
+      <a href="divide-and-conquer.html">分治 · Divide &amp; Conquer</a>
+    </div>
+    <div class="footer-bottom"><span>GREEDY / FIELD NOTE 03</span><span>SINGLE HTML · NO DEPENDENCIES</span><span>REDUCED-MOTION READY</span></div>
+  </div>
+</footer>
+<script>
+(function(){
+  "use strict";
+  const $ = function(sel, root){ return (root || document).querySelector(sel); };
+  const $$ = function(sel, root){ return Array.from((root || document).querySelectorAll(sel)); };
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  const progress = $(".progress span");
+  function updateProgress(){
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    progress.parentElement.style.setProperty("--p", p.toFixed(4));
+  }
+  window.addEventListener("scroll", updateProgress, { passive:true });
+  window.addEventListener("resize", updateProgress);
+  updateProgress();
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ document.body.classList.add("ready"); }); });
+  const revealEls = $$("[data-reveal]");
+  if (reduceMotion || !("IntersectionObserver" in window)){
+    revealEls.forEach(function(el){ el.classList.add("is-in"); });
+  } else {
+    const obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){ entry.target.classList.add("is-in"); obs.unobserve(entry.target); }
+      });
+    }, { threshold:.1, rootMargin:"0px 0px -5% 0px" });
+    revealEls.forEach(function(el){ obs.observe(el); });
+  }
+
+  /* ---------------- Interval scheduling ---------------- */
+  const ACTIVITIES = [
+    {id:"A", s:1, e:4}, {id:"B", s:3, e:5}, {id:"C", s:0, e:6},
+    {id:"D", s:5, e:7}, {id:"E", s:3, e:9}, {id:"F", s:5, e:9},
+    {id:"G", s:6, e:10}, {id:"H", s:8, e:11}, {id:"I", s:8, e:12},
+    {id:"J", s:2, e:14}, {id:"K", s:12, e:16}
+  ];
+  const TIME_MAX = 16;
+  const STRATEGIES = {
+    finish: {
+      label:"最早结束",
+      note:"按结束时间从早到晚排序；每次选择与上一个选中区间不重叠的最早结束者。",
+      key:function(a, b){ return a.e - b.e || a.s - b.s || a.id.localeCompare(b.id); }
+    },
+    start: {
+      label:"最早开始",
+      note:"按开始时间从早到晚排序；每次选择与上一个选中区间不重叠的最早开始者。",
+      key:function(a, b){ return a.s - b.s || a.e - b.e || a.id.localeCompare(b.id); }
+    },
+    duration: {
+      label:"最短时长",
+      note:"按持续时间从短到长排序；每次选择与上一个选中区间不重叠的最短活动。",
+      key:function(a, b){ return (a.e - a.s) - (b.e - b.s) || a.s - b.s || a.id.localeCompare(b.id); }
+    }
+  };
+  function computeOptimal(){
+    let best = [];
+    const n = ACTIVITIES.length;
+    for (let mask = 0; mask < (1 << n); mask++){
+      const subset = [];
+      for (let i = 0; i < n; i++) if (mask & (1 << i)) subset.push(ACTIVITIES[i]);
+      subset.sort(function(a, b){ return a.s - b.s || a.e - b.e; });
+      let ok = true;
+      for (let i = 1; i < subset.length; i++){
+        if (subset[i].s < subset[i-1].e){ ok = false; break; }
+      }
+      if (ok && subset.length > best.length) best = subset;
+    }
+    return best.map(function(a){ return a.id; });
+  }
+  const OPTIMAL = computeOptimal();
+  const sched = {
+    strategy:"finish", order:[], ptr:0, selected:new Set(), rejected:new Set(),
+    lastEnd:-Infinity, current:null, finished:false, playing:false, timer:null, log:[]
+  };
+  const strategyNote = $("#strategyNote");
+  const selectedCount = $("#selectedCount");
+  const optimalCount = $("#optimalCount");
+  const orderChips = $("#orderChips");
+  const ivRows = $("#ivRows");
+  const axisTrack = $("#axisTrack");
+  const schedLog = $("#schedLog");
+  const schedBig = $("#schedBig");
+  const schedResult = $("#schedResult");
+  const schedStatus = $("#schedStatus");
+  const schedPlay = $("#schedPlay");
+  const schedStep = $("#schedStep");
+  const schedReset = $("#schedReset");
+  const strategyButtons = $$("[data-strategy]");
+
+  function buildTimeline(){
+    axisTrack.innerHTML = "";
+    for (let t = 0; t <= TIME_MAX; t += 2){
+      const span = document.createElement("span");
+      span.className = "axis-tick";
+      span.style.left = (t / TIME_MAX * 100) + "%";
+      span.textContent = t;
+      axisTrack.appendChild(span);
+    }
+    ivRows.innerHTML = "";
+    ACTIVITIES.forEach(function(act){
+      const row = document.createElement("div");
+      row.className = "iv-row";
+      row.setAttribute("data-id", act.id);
+      const label = document.createElement("div");
+      label.className = "iv-label";
+      const b = document.createElement("b"); b.textContent = act.id;
+      const span = document.createElement("span"); span.textContent = act.s + "–" + act.e;
+      const opt = document.createElement("em"); opt.className = "opt-badge"; opt.textContent = "OPT";
+      label.appendChild(b); label.appendChild(span); label.appendChild(opt);
+      const track = document.createElement("div");
+      track.className = "iv-track";
+      const bar = document.createElement("div");
+      bar.className = "iv-bar";
+      bar.style.left = (act.s / TIME_MAX * 100) + "%";
+      bar.style.width = ((act.e - act.s) / TIME_MAX * 100) + "%";
+      bar.textContent = act.id;
+      track.appendChild(bar);
+      row.appendChild(label); row.appendChild(track);
+      ivRows.appendChild(row);
+    });
+    optimalCount.textContent = String(OPTIMAL.length);
+  }
+  function setSchedStatus(text){ schedStatus.textContent = text; }
+  function addSchedLog(kind, text){
+    sched.log.push({kind:kind, text:text});
+    if (sched.log.length > 50) sched.log.shift();
+  }
+  function updateSchedPlay(){
+    const spans = schedPlay.querySelectorAll("span");
+    if (sched.playing){ spans[0].textContent = "❚❚"; spans[1].textContent = "暂停"; }
+    else if (sched.finished){ spans[0].textContent = "↻"; spans[1].textContent = "重播"; }
+    else { spans[0].textContent = "▶"; spans[1].textContent = "播放"; }
+  }
+  function clearSchedTimer(){ if (sched.timer !== null){ window.clearTimeout(sched.timer); sched.timer = null; } }
+  function pauseSched(){ sched.playing = false; clearSchedTimer(); updateSchedPlay(); }
+  function resetSched(){
+    pauseSched();
+    sched.order = ACTIVITIES.slice().sort(STRATEGIES[sched.strategy].key);
+    sched.ptr = 0;
+    sched.selected = new Set();
+    sched.rejected = new Set();
+    sched.lastEnd = -Infinity;
+    sched.current = null;
+    sched.finished = false;
+    sched.log = [];
+    strategyNote.textContent = STRATEGIES[sched.strategy].note;
+    setSchedStatus("按" + STRATEGIES[sched.strategy].label + "排序。点击“单步”开始选择第一个活动。");
+    schedBig.textContent = "等待开始";
+    schedBig.className = "big";
+    schedResult.textContent = "当前策略：" + STRATEGIES[sched.strategy].label + "。";
+    addSchedLog("info", "排序完成：" + sched.order.map(function(a){ return a.id; }).join(" → "));
+    renderSched();
+  }
+  function finishSched(){
+    sched.finished = true;
+    sched.playing = false;
+    clearSchedTimer();
+    sched.current = null;
+    const got = sched.selected.size;
+    const opt = OPTIMAL.length;
+    schedBig.innerHTML = got + " <span>/ " + opt + "</span>";
+    if (got === opt){
+      schedBig.className = "big good";
+      schedResult.innerHTML = "<b style=\"color:var(--olive)\">达到最优。</b> 选中的活动：" + Array.from(sched.selected).join("、") + "。最优解之一：" + OPTIMAL.join("、") + "。";
+      setSchedStatus("最优！" + STRATEGIES[sched.strategy].label + "策略选到 " + got + " 个活动。这个策略在当前输入上达到最优，但一般性仍需交换论证。");
+    } else {
+      schedBig.className = "big bad";
+      schedResult.innerHTML = "<b style=\"color:var(--coral)\">没有达到最优。</b> 贪心选到 " + got + " 个，最优是 " + opt + " 个。最优解之一：" + OPTIMAL.join("、") + "。";
+      setSchedStatus("这个策略只选到 " + got + " 个，最优是 " + opt + " 个。贪心在这里失败了——换一个排序键，或者改用动态规划。");
+    }
+    addSchedLog("info", "结束：选中 " + got + " 个，最优 " + opt + " 个。");
+    renderSched();
+    updateSchedPlay();
+  }
+  function stepSched(){
+    if (sched.finished) return;
+    if (sched.ptr >= sched.order.length){ finishSched(); return; }
+    const act = sched.order[sched.ptr];
+    sched.current = act.id;
+    if (act.s >= sched.lastEnd){
+      sched.selected.add(act.id);
+      sched.lastEnd = act.e;
+      addSchedLog("select", "选 " + act.id + "（" + act.s + "–" + act.e + "）：与上一个选中区间不重叠。");
+      setSchedStatus("选 " + act.id + "（" + act.s + "–" + act.e + "）。它的结束时间成为新的时间下限。");
+    } else {
+      sched.rejected.add(act.id);
+      addSchedLog("reject", "跳过 " + act.id + "（" + act.s + "–" + act.e + "）：与已选区间重叠。");
+      setSchedStatus("跳过 " + act.id + "（" + act.s + "–" + act.e + "）：开始时间早于上一个选中区间的结束时间。");
+    }
+    sched.ptr += 1;
+    if (sched.ptr >= sched.order.length){
+      finishSched();
+    } else {
+      const next = sched.order[sched.ptr];
+      setSchedStatus(schedStatus.textContent + " 下一个候选：" + next.id + "。");
+      renderSched();
+    }
+  }
+  function renderSched(){
+    $$(".iv-row", ivRows).forEach(function(row){
+      const id = row.getAttribute("data-id");
+      row.classList.toggle("is-selected", sched.selected.has(id));
+      row.classList.toggle("is-rejected", sched.rejected.has(id));
+      row.classList.toggle("is-current", sched.current === id);
+      row.classList.toggle("is-opt", sched.finished && OPTIMAL.indexOf(id) >= 0);
+    });
+    const frag = document.createDocumentFragment();
+    sched.order.forEach(function(act){
+      const chip = document.createElement("span");
+      chip.className = "order-chip";
+      if (act.id === sched.current) chip.classList.add("is-current");
+      if (sched.selected.has(act.id)) chip.classList.add("is-selected");
+      if (sched.rejected.has(act.id)) chip.classList.add("is-rejected");
+      chip.textContent = act.id;
+      frag.appendChild(chip);
+    });
+    orderChips.replaceChildren(frag);
+    selectedCount.textContent = String(sched.selected.size);
+    const logFrag = document.createDocumentFragment();
+    sched.log.slice(-6).forEach(function(item){
+      const li = document.createElement("li");
+      li.className = item.kind === "reject" ? "is-reject" : "";
+      const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = item.kind === "select" ? "选" : (item.kind === "reject" ? "跳过" : "·");
+      const text = document.createElement("span"); text.textContent = item.text;
+      li.appendChild(tag); li.appendChild(text); logFrag.appendChild(li);
+    });
+    schedLog.replaceChildren(logFrag);
+    updateSchedPlay();
+  }
+  function playSched(){
+    if (sched.playing){ pauseSched(); return; }
+    if (sched.finished) resetSched();
+    if (reduceMotion){
+      while (!sched.finished) stepSched();
+      return;
+    }
+    sched.playing = true;
+    updateSchedPlay();
+    const tick = function(){
+      if (!sched.playing) return;
+      stepSched();
+      if (sched.playing && !sched.finished){
+        sched.timer = window.setTimeout(tick, 620);
+      } else {
+        sched.playing = false;
+        updateSchedPlay();
+      }
+    };
+    sched.timer = window.setTimeout(tick, 80);
+  }
+  strategyButtons.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      strategyButtons.forEach(function(b){ b.classList.toggle("is-active", b === btn); b.setAttribute("aria-pressed", b === btn ? "true" : "false"); });
+      sched.strategy = btn.getAttribute("data-strategy");
+      resetSched();
+    });
+  });
+  schedPlay.addEventListener("click", playSched);
+  schedStep.addEventListener("click", function(){ pauseSched(); stepSched(); });
+  schedReset.addEventListener("click", resetSched);
+  buildTimeline();
+  resetSched();
+
+  /* ---------------- Huffman ---------------- */
+  const HUFF_DATA = [
+    {label:"A", freq:5}, {label:"B", freq:9}, {label:"C", freq:12},
+    {label:"D", freq:13}, {label:"E", freq:16}, {label:"F", freq:45}
+  ];
+  const huffSvg = $("#huffTree");
+  const huffQueue = $("#huffQueue");
+  const huffMergeInfo = $("#huffMergeInfo");
+  const huffCodes = $("#huffCodes");
+  const huffStatus = $("#huffStatus");
+  const huffPlay = $("#huffPlay");
+  const huffStep = $("#huffStep");
+  const huffReset = $("#huffReset");
+  const huff = { nodes:[], queue:[], lastMerge:null, finished:false, playing:false, timer:null };
+
+  function huffName(node){
+    return node.label || ("Σ" + node.freq);
+  }
+  function sortQueue(){
+    huff.queue.sort(function(a, b){
+      const na = huff.nodes[a], nb = huff.nodes[b];
+      return na.freq - nb.freq || huffName(na).localeCompare(huffName(nb));
+    });
+  }
+  function initHuff(){
+    pauseHuff();
+    huff.nodes = HUFF_DATA.map(function(item, i){
+      return {id:i, label:item.label, freq:item.freq, left:null, right:null};
+    });
+    huff.queue = huff.nodes.map(function(n){ return n.id; });
+    sortQueue();
+    huff.lastMerge = null;
+    huff.finished = false;
+    huffCodes.innerHTML = "<p style=\"font-size:12px;color:rgba(247,238,223,.5);margin-top:8px\">合并完成后生成 0/1 编码。</p>";
+    huffStatus.textContent = "6 个叶子，优先队列按频率从小到大排列。准备取出两个最小的节点。";
+    huffMergeInfo.textContent = "等待第一次合并。";
+    renderHuff();
+    updateHuffPlay();
+  }
+  function updateHuffPlay(){
+    const spans = huffPlay.querySelectorAll("span");
+    if (huff.playing){ spans[0].textContent = "❚❚"; spans[1].textContent = "暂停"; }
+    else if (huff.finished){ spans[0].textContent = "↻"; spans[1].textContent = "重播"; }
+    else { spans[0].textContent = "▶"; spans[1].textContent = "播放"; }
+  }
+  function clearHuffTimer(){ if (huff.timer !== null){ window.clearTimeout(huff.timer); huff.timer = null; } }
+  function pauseHuff(){ huff.playing = false; clearHuffTimer(); updateHuffPlay(); }
+  function huffStepOnce(){
+    if (huff.finished) return;
+    if (huff.queue.length <= 1){ finishHuff(); return; }
+    sortQueue();
+    const a = huff.queue.shift();
+    const b = huff.queue.shift();
+    const parent = {
+      id: huff.nodes.length,
+      label:null,
+      freq: huff.nodes[a].freq + huff.nodes[b].freq,
+      left:a, right:b
+    };
+    huff.nodes.push(parent);
+    huff.queue.push(parent.id);
+    sortQueue();
+    huff.lastMerge = {a:a, b:b, parent:parent.id};
+    huffMergeInfo.textContent = "取出 " + huffName(huff.nodes[a]) + "(" + huff.nodes[a].freq + ") 和 " + huffName(huff.nodes[b]) + "(" + huff.nodes[b].freq + ") → 合并为 " + parent.freq + "。";
+    huffStatus.textContent = "取两个最小频率 " + huff.nodes[a].freq + " 和 " + huff.nodes[b].freq + "，生成新节点 " + parent.freq + " 并放回优先队列。";
+    if (huff.queue.length === 1){
+      finishHuff();
+    } else {
+      renderHuff();
+    }
+  }
+  function collectCodes(node, prefix, out){
+    if (node.left == null){
+      out.push({label:node.label, freq:node.freq, code:prefix});
+      return;
+    }
+    collectCodes(huff.nodes[node.left], prefix + "0", out);
+    collectCodes(huff.nodes[node.right], prefix + "1", out);
+  }
+  function finishHuff(){
+    huff.finished = true;
+    huff.playing = false;
+    clearHuffTimer();
+    const rootId = huff.queue[0];
+    const codes = [];
+    collectCodes(huff.nodes[rootId], "", codes);
+    codes.sort(function(a, b){ return a.label.localeCompare(b.label); });
+    const wpl = codes.reduce(function(sum, c){ return sum + c.freq * c.code.length; }, 0);
+    const frag = document.createElement("table");
+    const thead = document.createElement("thead");
+    thead.innerHTML = "<tr><th>字符</th><th>频率</th><th>编码</th><th>长度</th></tr>";
+    const tbody = document.createElement("tbody");
+    codes.forEach(function(c){
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + c.label + "</td><td>" + c.freq + "</td><td class=\"code\">" + c.code + "</td><td>" + c.code.length + "</td>";
+      tbody.appendChild(tr);
+    });
+    frag.appendChild(thead); frag.appendChild(tbody);
+    huffCodes.innerHTML = "";
+    huffCodes.appendChild(frag);
+    const wplLine = document.createElement("p");
+    wplLine.className = "wpl";
+    wplLine.innerHTML = "加权路径长度 WPL = <b>" + wpl + "</b>";
+    huffCodes.appendChild(wplLine);
+    huffStatus.textContent = "完成：根节点频率 " + huff.nodes[rootId].freq + "，WPL = " + wpl + "。频率越高，编码越短。";
+    renderHuff();
+    updateHuffPlay();
+  }
+  function playHuff(){
+    if (huff.playing){ pauseHuff(); return; }
+    if (huff.finished) initHuff();
+    if (reduceMotion){
+      while (!huff.finished) huffStepOnce();
+      return;
+    }
+    huff.playing = true;
+    updateHuffPlay();
+    const tick = function(){
+      if (!huff.playing) return;
+      huffStepOnce();
+      if (huff.playing && !huff.finished){
+        huff.timer = window.setTimeout(tick, 760);
+      } else {
+        huff.playing = false;
+        updateHuffPlay();
+      }
+    };
+    huff.timer = window.setTimeout(tick, 90);
+  }
+  function nodeWidth(node){
+    return node.left == null ? 1 : nodeWidth(huff.nodes[node.left]) + nodeWidth(huff.nodes[node.right]);
+  }
+  function renderHuff(){
+    if (!huff.nodes.length) return;
+    // queue chips
+    const qFrag = document.createDocumentFragment();
+    huff.queue.forEach(function(id){
+      const node = huff.nodes[id];
+      const chip = document.createElement("span");
+      chip.className = "qchip";
+      if (huff.lastMerge && (id === huff.lastMerge.a || id === huff.lastMerge.b)) chip.classList.add("is-out");
+      if (huff.lastMerge && id === huff.lastMerge.parent) chip.classList.add("is-new");
+      const main = document.createElement("span"); main.textContent = node.label || String(node.freq);
+      const small = document.createElement("small"); small.textContent = node.label ? String(node.freq) : "Σ";
+      chip.appendChild(main); chip.appendChild(small);
+      qFrag.appendChild(chip);
+    });
+    huffQueue.replaceChildren(qFrag);
+
+    // forest layout
+    const roots = huff.queue.slice();
+    let totalWidth = roots.reduce(function(sum, id){ return sum + nodeWidth(huff.nodes[id]); }, 0);
+    if (!totalWidth) return;
+    let maxDepth = 1;
+    let offset = 0;
+    function assign(id, off, depth){
+      const node = huff.nodes[id];
+      const w = nodeWidth(node);
+      maxDepth = Math.max(maxDepth, depth);
+      if (node.left == null){
+        node._x = off + w / 2;
+        node._y = depth;
+      } else {
+        assign(node.left, off, depth + 1);
+        assign(node.right, off + nodeWidth(huff.nodes[node.left]), depth + 1);
+        node._x = (huff.nodes[node.left]._x + huff.nodes[node.right]._x) / 2;
+        node._y = depth;
+      }
+      node._w = w;
+    }
+    roots.forEach(function(id){
+      assign(id, offset, 1);
+      offset += huff.nodes[id]._w;
+    });
+    const width = 760;
+    const margin = 42;
+    const usable = width - margin * 2;
+    const scale = usable / totalWidth;
+    const levelGap = 62;
+    const height = 48 + maxDepth * levelGap + 55;
+    huffSvg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    huffSvg.innerHTML = "";
+    const edgeLayer = document.createElementNS(SVG_NS, "g");
+    const nodeLayer = document.createElementNS(SVG_NS, "g");
+    huffSvg.appendChild(edgeLayer); huffSvg.appendChild(nodeLayer);
+    function point(id){
+      const n = huff.nodes[id];
+      return {x: margin + n._x * scale, y: 34 + (n._y - 1) * levelGap};
+    }
+    function drawEdges(id){
+      const node = huff.nodes[id];
+      if (node.left == null) return;
+      [node.left, node.right].forEach(function(childId, bit){
+        const p = point(id), c = point(childId);
+        const line = document.createElementNS(SVG_NS, "line");
+        line.setAttribute("x1", p.x); line.setAttribute("y1", p.y);
+        line.setAttribute("x2", c.x); line.setAttribute("y2", c.y);
+        line.setAttribute("class", "huff-edge" + (huff.lastMerge && (childId === huff.lastMerge.a || childId === huff.lastMerge.b) ? " is-new" : ""));
+        edgeLayer.appendChild(line);
+        const label = document.createElementNS(SVG_NS, "text");
+        label.setAttribute("x", (p.x + c.x) / 2);
+        label.setAttribute("y", (p.y + c.y) / 2);
+        label.setAttribute("class", "huff-edge-label");
+        label.textContent = String(bit);
+        edgeLayer.appendChild(label);
+        drawEdges(childId);
+      });
+    }
+    roots.forEach(drawEdges);
+    function drawNodes(id){
+      const node = huff.nodes[id];
+      const p = point(id);
+      const g = document.createElementNS(SVG_NS, "g");
+      g.setAttribute("class", "huff-node " + (node.left == null ? "leaf" : "internal"));
+      if (huff.lastMerge && (id === huff.lastMerge.a || id === huff.lastMerge.b)) g.classList.add("is-out");
+      if (huff.lastMerge && id === huff.lastMerge.parent) g.classList.add("is-new");
+      if (roots.length === 1 && id === roots[0]) g.classList.add("is-root");
+      const circle = document.createElementNS(SVG_NS, "circle");
+      circle.setAttribute("cx", p.x); circle.setAttribute("cy", p.y);
+      circle.setAttribute("r", node.left == null ? "21" : "23");
+      const label = document.createElementNS(SVG_NS, "text");
+      label.setAttribute("x", p.x); label.setAttribute("y", p.y + 1);
+      label.setAttribute("class", "h-label");
+      label.textContent = node.label || String(node.freq);
+      const freq = document.createElementNS(SVG_NS, "text");
+      freq.setAttribute("x", p.x); freq.setAttribute("y", p.y + 29);
+      freq.setAttribute("class", "h-freq");
+      freq.textContent = node.left == null ? String(node.freq) : "";
+      g.appendChild(circle); g.appendChild(label); g.appendChild(freq);
+      nodeLayer.appendChild(g);
+      if (node.left != null){ drawNodes(node.left); drawNodes(node.right); }
+    }
+    roots.forEach(drawNodes);
+    huffSvg.setAttribute("aria-label", "Huffman 树：当前有 " + roots.length + " 棵树，优先队列中有 " + huff.queue.length + " 个节点。");
+  }
+  huffPlay.addEventListener("click", playHuff);
+  huffStep.addEventListener("click", function(){ pauseHuff(); huffStepOnce(); });
+  huffReset.addEventListener("click", initHuff);
+  initHuff();
+})();
+</script>
+</body>
+</html>

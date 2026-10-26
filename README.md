@@ -28,7 +28,11 @@ homework/
 │       ├── requirements.txt
 │       └── .OTTER_LOG
 ├── 互评/                          ← 互评收到的他人提交（含解压副本）
-├── 交互算法/divide-and-conquer.html
+├── 交互算法/                      ← 单文件交互式学习页，浏览器直接打开
+│   ├── divide-and-conquer.html    ← 分治
+│   ├── bellman-ford.html          ← Bellman-Ford / 负权与负环
+│   ├── greedy.html                ← 贪心 / 区间调度与 Huffman
+│   └── graph-traversal.html       ← BFS / DFS / 拓扑排序 / SCC
 ├── submission/                    ← 交这里的压缩包
 │   ├── fft_2026_10_12T15_47_38_727943.zip              ← otter 官方导出
 │   ├── closest-pair_2026_10_12T15_48_56_153532.zip     ← otter 官方导出
@@ -45,6 +49,17 @@ homework/
 ```
 
 作业文件夹名 = 老师给的压缩包名，**答题文件就是 `答案/该文件夹/` 里的 `.ipynb`**。
+
+## 交互算法页面
+
+`交互算法/` 下是四份自包含的单文件教程，无需安装依赖，直接用浏览器打开即可：
+
+| 页面 | 内容 |
+|---|---|
+| `divide-and-conquer.html` | 分治思想、归并排序、最大子数组、棋盘覆盖、主定理 |
+| `bellman-ford.html` | 单边松弛实验、逐轮松弛演示、可达/不可达负环、正确性直觉、与 Dijkstra 对比 |
+| `greedy.html` | 区间调度策略对比、Huffman 合并、找零与 0-1 背包反例、交换论证 |
+| `graph-traversal.html` | BFS / DFS / 拓扑排序 / Kosaraju SCC 的逐步演示、队列/栈/时间戳面板 |
 
 ## Python 环境（不装 Anaconda）
 

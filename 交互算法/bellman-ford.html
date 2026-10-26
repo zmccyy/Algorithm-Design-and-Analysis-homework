@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bellman-Ford · 负权，也能算</title>
+<style>
+:root{
+  --paper:#e8e2d3;
+  --paper-2:#f3eee2;
+  --ink:#141813;
+  --muted:#5c6257;
+  --line:#b9b19f;
+  --board:#101b17;
+  --board-2:#17251f;
+  --cream:#f1eadb;
+  --copper:#c96a35;
+  --copper-soft:#efd6c4;
+  --mint:#9de3b6;
+  --mint-soft:#d7f0df;
+  --cyan:#7cd6c4;
+  --alarm:#d94b3c;
+  --alarm-soft:#f3d0c9;
+  --serif:"Songti SC","SimSun","STSong","Noto Serif SC",serif;
+  --sans:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --mono:"Cascadia Mono","Consolas","SFMono-Regular","Menlo",monospace;
+  --max:1240px;
+  --pad:clamp(18px,4vw,56px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--sans);font-size:15px;line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:
+    linear-gradient(to right,rgba(20,24,19,.045) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(20,24,19,.045) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.7),transparent 88%);
+}
+::selection{background:var(--copper);color:var(--cream)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+svg{display:block}
+:focus-visible{outline:2px solid var(--copper);outline-offset:3px}
+.wrap{width:min(calc(100% - 2 * var(--pad)),var(--max));margin-inline:auto}
+.mono{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);line-height:1.6}
+.tabular{font-variant-numeric:tabular-nums}
+.progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:120;pointer-events:none}
+.progress span{display:block;height:100%;background:var(--copper);transform:scaleX(var(--p,0));transform-origin:left center}
+.topbar{position:sticky;top:0;z-index:100;background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-inner{width:min(calc(100% - 2 * var(--pad)),var(--max));margin-inline:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:58px}
+.brand{display:flex;align-items:baseline;gap:11px;white-space:nowrap}
+.brand b{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:.06em}
+.brand span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--muted)}
+.nav{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid transparent;padding:4px 0;white-space:nowrap}
+.nav a:hover{color:var(--ink);border-color:var(--ink)}
+.hero{padding:clamp(44px,7vw,90px) 0 clamp(42px,6vw,72px);border-bottom:1px solid var(--ink)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(320px,.92fr);gap:clamp(28px,5vw,72px);align-items:end}
+.eyebrow{display:flex;align-items:center;gap:10px;color:var(--copper);font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.eyebrow::before{content:"";width:28px;height:1px;background:var(--copper)}
+.hero h1{font-family:var(--serif);font-weight:600;font-size:clamp(3.3rem,8.6vw,7.2rem);line-height:.96;letter-spacing:-.04em;margin-top:18px}
+.hero h1 em{font-style:normal;color:var(--copper)}
+.hero-sub{max-width:620px;margin-top:24px;font-size:15.5px;line-height:1.95;color:var(--muted)}
+.hero-sub b{color:var(--ink);font-weight:600;box-shadow:inset 0 -.45em 0 var(--copper-soft)}
+.hero-stats{display:flex;flex-wrap:wrap;gap:0;margin-top:34px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+.hero-stat{padding:14px 24px 14px 0;margin-right:24px;border-right:1px solid var(--line)}
+.hero-stat:last-child{border-right:0;margin-right:0}
+.hero-stat b{display:block;font-family:var(--mono);font-size:22px;font-weight:500;letter-spacing:-.02em}
+.hero-stat span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}
+.hero-board{border:1px solid var(--ink);background:var(--board);padding:18px;position:relative;overflow:hidden}
+.hero-board::before{content:"";position:absolute;inset:0;background-image:linear-gradient(to right,rgba(124,214,196,.08) 1px,transparent 1px),linear-gradient(to bottom,rgba(124,214,196,.08) 1px,transparent 1px);background-size:32px 32px;pointer-events:none}
+.hero-board svg{position:relative;width:100%;height:auto}
+.hero-board figcaption{position:relative;display:flex;justify-content:space-between;gap:12px;border-top:1px solid rgba(241,234,219,.18);margin-top:10px;padding-top:10px;color:rgba(241,234,219,.62);font-family:var(--mono);font-size:9.5px;letter-spacing:.08em}
+.hero-board .pulse{animation:pulse 3.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+.section{padding:clamp(52px,7vw,88px) 0;border-bottom:1px solid var(--line)}
+.sec-head{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(220px,340px);gap:24px;align-items:start;margin-bottom:clamp(28px,4vw,46px)}
+.sec-no{font-family:var(--mono);font-size:11px;color:var(--copper);padding-top:7px;border-top:1px solid var(--ink)}
+.sec-head h2{font-family:var(--serif);font-size:clamp(1.9rem,3.6vw,3.2rem);font-weight:600;line-height:1.18;letter-spacing:-.02em;margin-top:8px}
+.sec-lede{font-size:13.5px;line-height:1.9;color:var(--muted);padding-top:24px}
+.card{border:1px solid var(--ink);background:color-mix(in srgb,var(--paper-2) 58%,transparent);padding:clamp(18px,2.4vw,26px)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}
+.card-head .mono{color:var(--copper)}
+.btn{appearance:none;border:1px solid var(--ink);background:transparent;padding:9px 14px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;cursor:pointer;transition:background .18s,color .18s,border-color .18s}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.btn-primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn-primary:hover{background:var(--copper);border-color:var(--copper);color:var(--cream)}
+.btn-copper{background:var(--copper);border-color:var(--copper);color:var(--cream)}
+.btn-copper:hover{background:var(--ink);border-color:var(--ink)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.formula{font-family:var(--mono);font-size:clamp(13px,1.5vw,16px);line-height:1.7;background:var(--ink);color:var(--cream);padding:18px 20px;overflow-x:auto}
+.formula b{color:var(--copper-soft);font-weight:500}
+.formula .muted{color:rgba(241,234,219,.55)}
+.relax-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr);gap:clamp(20px,3vw,36px);align-items:stretch}
+.relax-lab{display:grid;gap:18px}
+.lab-stage{display:flex;align-items:center;justify-content:center;gap:clamp(8px,2vw,22px);min-height:150px;border:1px dashed var(--line);padding:18px;background:color-mix(in srgb,var(--paper-2) 45%,transparent)}
+.lab-node{width:86px;height:86px;border:1px solid var(--ink);display:grid;place-items:center;background:var(--paper-2);font-family:var(--mono);font-size:20px;position:relative}
+.lab-node small{position:absolute;left:50%;bottom:-26px;transform:translateX(-50%);font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap}
+.lab-edge{flex:1;max-width:220px;position:relative;height:1px;background:var(--ink)}
+.lab-edge::after{content:"";position:absolute;right:-1px;top:-4px;border-left:8px solid var(--ink);border-top:4px solid transparent;border-bottom:4px solid transparent}
+.lab-edge span{position:absolute;left:50%;top:-26px;transform:translateX(-50%);font-family:var(--mono);font-size:12px;background:var(--paper);padding:0 5px;white-space:nowrap}
+.lab-controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+input[type="range"]{width:min(100%,260px);accent-color:var(--copper)}
+.lab-readout{font-family:var(--mono);font-size:12.5px;line-height:1.8;color:var(--muted);border-left:2px solid var(--copper);padding-left:12px;min-height:48px}
+.lab-readout b{color:var(--ink);font-weight:500}
+.lab-note{font-size:12px;line-height:1.8;color:var(--muted)}
+.demo-shell{border:1px solid var(--ink);background:var(--board);color:var(--cream);overflow:hidden}
+.demo-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-bottom:1px solid rgba(241,234,219,.16)}
+.demo-tag{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:rgba(241,234,219,.72)}
+.demo-tag i{width:6px;height:6px;background:var(--cyan);display:block;border-radius:50%}
+.demo-top .controls .btn{border-color:rgba(241,234,219,.38);color:var(--cream)}
+.demo-top .controls .btn:hover{background:var(--cream);color:var(--ink);border-color:var(--cream)}
+.demo-top .controls .btn-primary{background:var(--copper);border-color:var(--copper);color:var(--cream)}
+.examples{display:flex;flex-wrap:wrap;gap:6px}
+.examples .btn{font-size:10px;padding:7px 10px}
+.examples .btn.is-active{background:var(--cyan);border-color:var(--cyan);color:var(--board)}
+.demo-readout{display:grid;grid-template-columns:auto 1fr auto;gap:10px 18px;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(241,234,219,.16);font-family:var(--mono);font-size:10.5px;color:rgba(241,234,219,.72)}
+.demo-readout .big{font-size:13px;color:var(--cream);letter-spacing:.02em}
+.demo-meter{height:3px;background:rgba(241,234,219,.14);position:relative;overflow:hidden}
+.demo-meter span{display:block;height:100%;width:100%;background:var(--cyan);transform:scaleX(var(--p,0));transform-origin:left center;transition:transform .3s ease}
+.scan-tape{display:flex;gap:5px;overflow-x:auto;scrollbar-width:thin;padding:11px 16px;border-bottom:1px solid rgba(241,234,219,.16);scrollbar-color:rgba(241,234,219,.25) transparent}
+.scan-chip{flex:0 0 auto;border:1px solid rgba(241,234,219,.22);padding:3px 7px;font-family:var(--mono);font-size:9.5px;color:rgba(241,234,219,.65);white-space:nowrap;transition:background .18s,color .18s,border-color .18s}
+.scan-chip small{opacity:.65;margin-left:4px}
+.scan-chip.is-current{background:var(--cyan);border-color:var(--cyan);color:var(--board)}
+.scan-chip.is-updated{border-color:var(--copper);color:var(--copper-soft)}
+.scan-chip.is-current.is-updated{background:var(--copper);border-color:var(--copper);color:var(--cream)}
+.scroll-hint{display:none}
+@media (max-width:720px){.scroll-hint{display:block;margin:0;padding:8px 16px 0;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--muted)}.scroll-hint.on-dark{color:rgba(241,234,219,.55);padding-top:8px;padding-bottom:0}}
+.graph-wrap{padding:8px 10px 2px;position:relative;background-image:linear-gradient(to right,rgba(124,214,196,.055) 1px,transparent 1px),linear-gradient(to bottom,rgba(124,214,196,.055) 1px,transparent 1px);background-size:32px 32px}
+#bfGraph{width:100%;height:auto;min-width:640px}
+.graph-scroll{overflow-x:auto;scrollbar-color:rgba(241,234,219,.25) transparent;scrollbar-width:thin}
+.edge-line{stroke:#66746c;stroke-width:1.8;fill:none;transition:stroke .2s,stroke-width .2s,opacity .2s}
+.edge-line.is-current{stroke:var(--cyan);stroke-width:2.8}
+.edge-line.is-updated{stroke:var(--copper);stroke-width:3}
+.edge-line.is-path{stroke:var(--mint);stroke-width:3.2}
+.edge-line.is-cycle{stroke:var(--alarm);stroke-width:3.4}
+.edge-line.is-dim{opacity:.42}
+.edge-label{font-family:var(--mono);font-size:11px;fill:#c9c2b1;stroke:var(--board);stroke-width:4;paint-order:stroke;text-anchor:middle;dominant-baseline:middle}
+.edge-label.is-current{fill:var(--cyan)}
+.edge-label.is-updated{fill:var(--copper-soft)}
+.edge-label.is-path{fill:var(--mint)}
+.edge-label.is-cycle{fill:#ff9d90}
+.node-circle{fill:var(--cream);stroke:var(--ink);stroke-width:1.5;transition:fill .2s,stroke .2s}
+.node-letter{font-family:var(--mono);font-size:15px;font-weight:600;fill:var(--ink);text-anchor:middle;dominant-baseline:middle}
+.node-pill{fill:var(--board-2);stroke:rgba(241,234,219,.28);stroke-width:1}
+.node-dist{font-family:var(--mono);font-size:11px;fill:var(--cream);text-anchor:middle;dominant-baseline:middle}
+.node-group.is-active .node-circle{fill:var(--cyan-soft,#d7f1eb);stroke:var(--cyan);stroke-width:2.4}
+.node-group.is-updated .node-circle{fill:var(--copper-soft);stroke:var(--copper);stroke-width:2.4;animation:nodeflash .55s ease-out}
+.node-group.is-path .node-circle{fill:var(--mint-soft);stroke:var(--mint);stroke-width:2.4}
+.node-group.is-cycle .node-circle{fill:var(--alarm-soft);stroke:var(--alarm);stroke-width:2.6}
+.node-group.is-path .node-pill{border-color:var(--mint)}
+.node-group.is-cycle .node-pill{stroke:var(--alarm)}
+.node-group.is-cycle .node-dist{fill:#ffd7d0}
+@keyframes nodeflash{0%{stroke-width:6}100%{stroke-width:2.4}}
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:11px 16px;border-top:1px solid rgba(241,234,219,.16);font-family:var(--mono);font-size:9.5px;color:rgba(241,234,219,.62)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:16px;height:2px;display:block;background:#66746c}
+.legend i.c{background:var(--cyan)}
+.legend i.u{background:var(--copper)}
+.legend i.p{background:var(--mint)}
+.legend i.r{background:var(--alarm)}
+.demo-bottom{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr) minmax(0,1.2fr);gap:0;border-top:1px solid rgba(241,234,219,.16)}
+.demo-cell{padding:16px;border-right:1px solid rgba(241,234,219,.16);min-width:0}
+.demo-cell:last-child{border-right:0}
+.demo-cell .mono{color:rgba(241,234,219,.55)}
+.check-formula{font-family:var(--mono);font-size:11.5px;line-height:1.9;color:var(--cream);margin-top:8px;overflow-wrap:anywhere}
+.check-formula .yes{color:var(--mint)}
+.check-formula .no{color:rgba(241,234,219,.62)}
+.dist-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;margin-top:6px}
+.dist-table th{font-size:9px;letter-spacing:.1em;color:rgba(241,234,219,.48);font-weight:400;text-align:left;padding:3px 6px;border-bottom:1px solid rgba(241,234,219,.16)}
+.dist-table td{padding:4px 6px;border-bottom:1px solid rgba(241,234,219,.08);color:rgba(241,234,219,.82)}
+.dist-table td:first-child{color:var(--cream)}
+.dist-table tr.is-active td{background:rgba(124,214,196,.09);color:var(--cyan)}
+.dist-table tr.is-updated td{background:rgba(201,106,53,.13);color:var(--copper-soft)}
+.log{max-height:170px;overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(241,234,219,.25) transparent;margin-top:6px}
+.log li{display:grid;grid-template-columns:42px 1fr;gap:8px;padding:5px 0;border-bottom:1px solid rgba(241,234,219,.08);font-family:var(--mono);font-size:10px;line-height:1.6;color:rgba(241,234,219,.62)}
+.log li .tag{color:rgba(241,234,219,.42)}
+.log li.is-update{color:var(--copper-soft)}
+.log li.is-cycle{color:#ff9d90}
+.status{margin-top:12px;padding:11px 14px;border-left:2px solid var(--cyan);background:rgba(124,214,196,.08);font-size:12.5px;line-height:1.8;color:rgba(241,234,219,.82)}
+.status b{color:var(--cream);font-weight:500}
+.demo-notes{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.note-box{border-top:1px solid var(--ink);padding-top:12px}
+.note-box h3{font-family:var(--serif);font-size:19px;font-weight:600;margin:4px 0 6px}
+.note-box p{font-size:12.5px;line-height:1.85;color:var(--muted)}
+.detector{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr);gap:0;border:1px solid var(--ink);background:var(--board);color:var(--cream)}
+.detector-graph{padding:10px;border-right:1px solid rgba(241,234,219,.16);min-width:0;overflow-x:auto}
+.detector-graph svg{width:100%;height:auto;min-width:560px}
+.detector-side{padding:20px;display:flex;flex-direction:column;gap:14px}
+.det-btn-row{display:flex;flex-wrap:wrap;gap:8px}
+.detector-side .btn{border-color:rgba(241,234,219,.38);color:var(--cream)}
+.detector-side .btn:hover{background:var(--cream);color:var(--ink);border-color:var(--cream)}
+.detector-side .btn-primary{background:var(--copper);border-color:var(--copper);color:var(--cream)}
+.det-result{font-size:12.5px;line-height:1.85;color:rgba(241,234,219,.72);border-left:2px solid var(--copper);padding-left:12px;min-height:84px}
+.det-result b{color:var(--cream);font-weight:500}
+.det-result .bad{color:#ff9d90}
+.det-result .good{color:var(--mint)}
+.det-node .dn-circle{fill:var(--cream);stroke:var(--ink);stroke-width:1.2}
+.det-node .dn-label{font-family:var(--mono);font-size:12px;fill:var(--ink);text-anchor:middle;dominant-baseline:middle}
+.det-node .dn-dist{font-family:var(--mono);font-size:9px;fill:rgba(241,234,219,.64);text-anchor:middle}
+.det-node.is-reached .dn-circle{fill:var(--mint-soft);stroke:var(--mint)}
+.det-node.is-cycle .dn-circle{fill:var(--alarm-soft);stroke:var(--alarm);stroke-width:2}
+.det-node.is-cycle .dn-dist{fill:#ff9d90}
+.det-edge{stroke:#66746c;stroke-width:1.6;fill:none}
+.det-edge.is-reached{stroke:var(--mint)}
+.det-edge.is-cycle{stroke:var(--alarm);stroke-width:2.6}
+.det-sep{stroke:rgba(241,234,219,.25);stroke-width:1;stroke-dasharray:4 6}
+.det-sep-label{font-family:var(--mono);font-size:9px;fill:rgba(241,234,219,.42);text-anchor:middle;letter-spacing:.08em}
+.code{background:var(--ink);color:var(--cream);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:11px;line-height:1.8;border:1px solid var(--ink)}
+.code .c{color:rgba(241,234,219,.45)}
+.code .k{color:var(--cyan)}
+.code .n{color:var(--mint)}
+.code .w{color:var(--copper-soft)}
+.proof-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--ink)}
+.proof-card{padding:clamp(18px,2.4vw,28px);border-right:1px solid var(--line);background:color-mix(in srgb,var(--paper-2) 35%,transparent)}
+.proof-card:last-child{border-right:0}
+.proof-card .big{font-family:var(--serif);font-size:clamp(2rem,4vw,3rem);color:var(--copper);line-height:1;margin:6px 0 14px}
+.proof-card h3{font-family:var(--serif);font-size:20px;font-weight:600;line-height:1.35;margin-bottom:8px}
+.proof-card p{font-size:12.5px;line-height:1.9;color:var(--muted)}
+.proof-card p b{color:var(--ink);font-weight:600}
+.ladder{border:1px solid var(--ink);margin-top:22px;background:color-mix(in srgb,var(--paper-2) 30%,transparent)}
+.ladder-row{display:grid;grid-template-columns:88px 1fr 120px;gap:14px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11px}
+.ladder-row:last-child{border-bottom:0}
+.ladder-row .lb{color:var(--copper)}
+.ladder-bar{height:7px;background:var(--line);position:relative;overflow:hidden}
+.ladder-bar i{display:block;height:100%;background:var(--copper);width:var(--w,0%)}
+.ladder-row .lv{font-size:10px;color:var(--muted);text-align:right}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--ink);margin-top:24px}
+.compare-col{padding:clamp(18px,2.4vw,28px);border-right:1px solid var(--line)}
+.compare-col:last-child{border-right:0}
+.compare-col h3{font-family:var(--serif);font-size:24px;line-height:1.3;margin-bottom:4px}
+.compare-col .mono{color:var(--copper)}
+.compare-col ul{margin-top:14px}
+.compare-col li{font-size:12.5px;line-height:1.85;color:var(--muted);padding:7px 0;border-top:1px solid var(--line)}
+.compare-col li b{color:var(--ink);font-weight:600}
+.pitfalls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}
+.pitfall{border:1px solid var(--line);padding:14px 16px;background:color-mix(in srgb,var(--paper-2) 28%,transparent)}
+.pitfall b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--copper);margin-bottom:5px}
+.pitfall p{font-size:12px;line-height:1.8;color:var(--muted)}
+.quiz{border-top:1px solid var(--ink)}
+.quiz details{border-bottom:1px solid var(--line)}
+.quiz summary{display:grid;grid-template-columns:46px 1fr 24px;gap:12px;align-items:center;padding:17px 0;cursor:pointer;list-style:none;font-size:14px;font-weight:600}
+.quiz summary::-webkit-details-marker{display:none}
+.quiz summary .qno{font-family:var(--mono);font-size:10px;color:var(--copper);font-weight:400}
+.quiz summary::after{content:"+";font-family:var(--mono);font-size:17px;color:var(--muted);text-align:right;transition:transform .2s}
+.quiz details[open] summary::after{transform:rotate(45deg)}
+.quiz .answer{padding:0 0 18px 58px;font-size:13px;line-height:1.9;color:var(--muted)}
+.quiz .answer b{color:var(--ink)}
+.footer{padding:34px 0 48px}
+.footer-top{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:18px}
+.footer-phrase{font-family:var(--serif);font-size:22px;letter-spacing:.08em}
+.footer-phrase i{display:inline-block;width:22px;height:1px;background:var(--copper);vertical-align:middle;margin:0 9px}
+.footer-top p{max-width:460px;font-size:12px;line-height:1.85;color:var(--muted)}
+.footer-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.footer-links a{border:1px solid var(--line);padding:7px 11px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.footer-links a:hover{border-color:var(--ink);color:var(--ink)}
+.footer-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:16px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted)}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+.reveal.is-in{opacity:1;transform:none}
+@media (max-width:1000px){
+  .hero-grid,.relax-grid,.detector{grid-template-columns:1fr}
+  .detector-graph{border-right:0;border-bottom:1px solid rgba(241,234,219,.16)}
+  .demo-bottom{grid-template-columns:1fr 1fr}
+  .demo-cell:nth-child(2){border-right:0}
+  .demo-cell:nth-child(3){grid-column:1 / -1;border-top:1px solid rgba(241,234,219,.16)}
+  .sec-head{grid-template-columns:46px minmax(0,1fr)}
+  .sec-lede{grid-column:2;padding-top:0}
+  .proof-grid{grid-template-columns:1fr}
+  .proof-card{border-right:0;border-bottom:1px solid var(--line)}
+  .proof-card:last-child{border-bottom:0}
+}
+@media (max-width:720px){
+  .topbar-inner{min-height:52px}
+  .nav{gap:16px}
+  .brand span{display:none}
+  .hero{padding-top:42px}
+  .hero h1{font-size:clamp(3rem,15vw,5rem)}
+  .hero-stat{padding-right:16px;margin-right:16px}
+  .demo-top{align-items:flex-start}
+  .examples{width:100%}
+  .demo-bottom{grid-template-columns:1fr}
+  .demo-cell{border-right:0;border-bottom:1px solid rgba(241,234,219,.16)}
+  .demo-cell:last-child{border-bottom:0}
+  .demo-cell:nth-child(3){grid-column:auto;border-top:0}
+  .demo-notes,.compare,.pitfalls{grid-template-columns:1fr}
+  .compare-col{border-right:0;border-bottom:1px solid var(--line)}
+  .compare-col:last-child{border-bottom:0}
+  .ladder-row{grid-template-columns:68px 1fr;}
+  .ladder-row .lv{grid-column:2;text-align:left}
+  .footer-top{flex-direction:column}
+  .quiz summary{grid-template-columns:36px 1fr 20px}
+  .quiz .answer{padding-left:48px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+<div class="progress" aria-hidden="true"><span></span></div>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top" aria-label="回到页面顶部"><b>松弛</b><span>BELLMAN–FORD / FIELD NOTE 02</span></a>
+    <nav class="nav" aria-label="页面导航">
+      <a href="#relax">松弛</a>
+      <a href="#demo">主演示</a>
+      <a href="#negative">负环</a>
+      <a href="#proof">为什么</a>
+      <a href="#compare">对比</a>
+      <a href="#quiz">自测</a>
+    </nav>
+  </div>
+</header>
+<main id="top">
+  <section class="hero" aria-labelledby="heroTitle">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Bellman–Ford / Negative weights</div>
+          <h1 id="heroTitle">负权，<br>也能<em>算</em>。</h1>
+          <p class="hero-sub">Dijkstra 遇到负权边会失效，Bellman-Ford 却愿意<strong>多花一点时间</strong>：反复扫描每条边，把距离一点点松弛下去。它还能回答 Dijkstra 无法回答的问题——<b>图里有没有负环？</b></p>
+          <div class="hero-stats" aria-label="算法关键数字">
+            <div class="hero-stat"><b>n−1</b><span>最多有效轮数</span></div>
+            <div class="hero-stat"><b>O(VE)</b><span>邻接表逐边扫描</span></div>
+            <div class="hero-stat"><b>1</b><span>条额外的检查轮</span></div>
+          </div>
+        </div>
+        <figure class="hero-board" aria-label="带负权边的示例图">
+          <svg viewBox="0 0 520 330" role="img" aria-label="源点 A 到 B 到 C 的路径，B 到 C 的边权为负四">
+            <defs>
+              <marker id="heroArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#7cd6c4"/></marker>
+              <marker id="heroArrowDim" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#66746c"/></marker>
+            </defs>
+            <path d="M108 108 L250 214" stroke="#66746c" stroke-width="1.4" fill="none" marker-end="url(#heroArrowDim)"/>
+            <path d="M292 214 L412 120" stroke="#7cd6c4" stroke-width="2.2" fill="none" marker-end="url(#heroArrow)"/>
+            <path d="M122 132 Q260 300 398 144" stroke="#c96a35" stroke-width="1.8" stroke-dasharray="5 6" fill="none" marker-end="url(#heroArrowDim)" opacity=".8"/>
+            <text x="168" y="146" fill="#c9c2b1" font-family="Consolas,monospace" font-size="11">+6</text>
+            <text x="344" y="150" fill="#7cd6c4" font-family="Consolas,monospace" font-size="11" class="pulse">−4</text>
+            <text x="252" y="296" fill="#c96a35" font-family="Consolas,monospace" font-size="10">+9 · 更贵</text>
+            <g>
+              <circle cx="88" cy="96" r="23" fill="#f1eadb" stroke="#141813" stroke-width="1.4"/>
+              <text x="88" y="101" text-anchor="middle" font-family="Consolas,monospace" font-size="14" fill="#141813">A</text>
+              <text x="88" y="138" text-anchor="middle" font-family="Consolas,monospace" font-size="9" fill="#9de3b6">0</text>
+            </g>
+            <g>
+              <circle cx="272" cy="228" r="23" fill="#f1eadb" stroke="#141813" stroke-width="1.4"/>
+              <text x="272" y="233" text-anchor="middle" font-family="Consolas,monospace" font-size="14" fill="#141813">B</text>
+              <text x="272" y="270" text-anchor="middle" font-family="Consolas,monospace" font-size="9" fill="#9de3b6">6</text>
+            </g>
+            <g>
+              <circle cx="432" cy="108" r="23" fill="#f1eadb" stroke="#c96a35" stroke-width="2"/>
+              <text x="432" y="113" text-anchor="middle" font-family="Consolas,monospace" font-size="14" fill="#141813">C</text>
+              <text x="432" y="86" text-anchor="middle" font-family="Consolas,monospace" font-size="9" fill="#efd6c4">2</text>
+            </g>
+            <text x="20" y="312" fill="#6f7b70" font-family="Consolas,monospace" font-size="9">逐边扫描 · 每轮只做一次松弛</text>
+          </svg>
+          <figcaption><span>RELAXATION / 从 A 出发</span><span>DIST C: 6 → 2</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="relax" aria-labelledby="relaxTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">01</div>
+        <div><p class="mono">The only move</p><h2 id="relaxTitle">一条边，怎么松弛？</h2></div>
+        <p class="sec-lede">Bellman-Ford 的全部动作只有一个：如果经过 u 再到 v 更近，就把 d[v] 改小。先把这个动作看透，后面的轮次只是重复它。</p>
+      </header>
+      <div class="relax-grid">
+        <div class="card reveal" data-reveal>
+          <div class="card-head"><span class="mono">Relaxation lab / 单边实验</span><span class="mono">d[u] = 6</span></div>
+          <div class="relax-lab">
+            <div class="lab-stage" aria-hidden="true">
+              <div class="lab-node">u<small>d[u] = 6</small></div>
+              <div class="lab-edge"><span id="wLabel">w = −4</span></div>
+              <div class="lab-node">v<small id="dvLabel">d[v] = 9</small></div>
+            </div>
+            <div class="lab-controls">
+              <label class="mono" for="weightRange">边权 w</label>
+              <input id="weightRange" type="range" min="-5" max="5" step="1" value="-4" aria-label="边权 w">
+              <output class="mono" id="weightValue" for="weightRange">−4</output>
+              <button class="btn btn-copper" id="relaxBtn" type="button">执行松弛</button>
+              <button class="btn" id="relaxReset" type="button">重置 d[v]</button>
+            </div>
+            <p class="lab-readout" id="labReadout" aria-live="polite">当前 d[v] = 9。拖动边权，看看 6 + w 是否小于 9。</p>
+            <p class="lab-note">注意：只有 <b>严格更小</b> 才更新。相等时不更新，这样前驱指针不会被无意义地改写。</p>
+          </div>
+        </div>
+        <div class="reveal" data-reveal>
+          <div class="formula">d[v] &larr; <b>min</b>( d[v], d[u] + w(u,v) )</div>
+          <div class="note-box"><h3>为什么只做这一件事就够了？</h3><p>一条最短路 A → … → v 的最后一步一定是从某个 u 走边 (u,v) 到达 v。只要 d[u] 已经是到 u 的最短距离，松弛这条边就能把 d[v] 修正到正确答案。</p></div>
+          <div class="note-box"><h3>负权边只是让 d 变小</h3><p>Dijkstra 依赖“取出最小距离后不会再变小”；负权边打破了这个前提。Bellman-Ford 不急着定稿，它给每条边反复翻身的机会。</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="demo" aria-labelledby="demoTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">02</div>
+        <div><p class="mono">Round by round / 主演示</p><h2 id="demoTitle">把每一条边，扫到不再变</h2></div>
+        <p class="sec-lede">固定顺序扫描所有边，每一轮都可以把最短路多推进一条边。单步观察一次松弛，或直接播放到收敛。</p>
+      </header>
+      <div class="demo-shell reveal" data-reveal>
+        <div class="demo-top">
+          <div class="demo-tag"><i></i><span>BELLMAN–FORD / SOURCE A → TARGET F</span></div>
+          <div class="examples" role="group" aria-label="选择示例">
+            <button class="btn is-active" type="button" data-example="base" aria-pressed="true">基础图</button>
+            <button class="btn" type="button" data-example="cycle" aria-pressed="false">可达负环</button>
+          </div>
+          <div class="controls">
+            <button class="btn btn-primary" id="bfPlay" type="button"><span aria-hidden="true">▶</span><span>播放</span></button>
+            <button class="btn" id="bfStep" type="button">单步</button>
+            <button class="btn" id="bfReset" type="button">重置</button>
+          </div>
+        </div>
+        <div class="demo-readout" aria-live="polite">
+          <span class="big" id="roundLabel">第 1 / 5 轮</span>
+          <span id="edgeLabel">边 1 / 10</span>
+          <span id="updateLabel">本轮尚未发现更新</span>
+        </div>
+        <div class="demo-meter" aria-hidden="true"><span id="demoMeter"></span></div>
+        <div class="scan-tape" id="scanTape" aria-label="本轮扫描顺序"></div>
+        <p class="scroll-hint on-dark">← 左右滑动查看完整扫描顺序与图 →</p>
+        <div class="graph-scroll" tabindex="0" aria-label="Bellman-Ford 图演示，可横向滚动">
+          <div class="graph-wrap">
+            <svg id="bfGraph" viewBox="0 0 760 470" role="img" aria-label="Bellman-Ford 有向图演示"></svg>
+          </div>
+        </div>
+        <div class="legend" aria-label="图例">
+          <span><i class="c"></i>当前扫描</span>
+          <span><i class="u"></i>发生更新</span>
+          <span><i class="p"></i>最终最短路</span>
+          <span><i class="r"></i>负环</span>
+        </div>
+        <div class="demo-bottom">
+          <div class="demo-cell">
+            <span class="mono">Current check / 当前检查</span>
+            <p class="check-formula" id="checkFormula">等待第一步。</p>
+            <p class="status" id="bfStatus" aria-live="polite">源点 A 的距离为 0，其余为 ∞。准备扫描第 1 轮。</p>
+          </div>
+          <div class="demo-cell">
+            <span class="mono">Distances / 距离表</span>
+            <table class="dist-table">
+              <thead><tr><th>点</th><th>d</th><th>prev</th></tr></thead>
+              <tbody id="distBody"></tbody>
+            </table>
+          </div>
+          <div class="demo-cell">
+            <span class="mono">Relaxation tape / 更新日志</span>
+            <ol class="log" id="bfLog" aria-live="polite"></ol>
+          </div>
+        </div>
+      </div>
+      <div class="demo-notes reveal" data-reveal>
+        <div class="note-box"><h3>为什么最多 n−1 轮？</h3><p>没有负环时，最短路一定可以选成简单路径，最多经过 n−1 条边。第 k 轮结束时，所有“最多 k 条边”的最短路都已经被确定；所以 n−1 轮足够覆盖全部答案。</p></div>
+        <div class="note-box"><h3>提前停止是优化，不是必需</h3><p>如果某一轮扫描没有任何更新，说明已经收敛，可以立刻停止。最坏情况仍然需要 n−1 轮；不要因为提前停止就误以为算法只跑一两轮。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="negative" aria-labelledby="negTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">03</div>
+        <div><p class="mono">Negative cycle / 负环</p><h2 id="negTitle">第 n 轮还能松弛，就出事了</h2></div>
+        <p class="sec-lede">负环让路径可以无限变短。Bellman-Ford 用一条额外的检查轮发现它；但“发现”之前，先要分清：负环到底从源点能不能走到？</p>
+      </header>
+      <div class="detector reveal" data-reveal>
+        <div class="detector-graph">
+          <svg viewBox="0 0 700 300" role="img" aria-label="两个不连通分量：左侧源点可达，右侧含负环">
+            <defs>
+              <marker id="detArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#66746c"/></marker>
+              <marker id="detArrowMint" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#9de3b6"/></marker>
+              <marker id="detArrowRed" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#d94b3c"/></marker>
+            </defs>
+            <line x1="326" y1="26" x2="326" y2="274" class="det-sep"/>
+            <text x="326" y="16" class="det-sep-label">不连通</text>
+            <path id="det-sa" class="det-edge" d="M92 150 L176 90" marker-end="url(#detArrow)"/>
+            <path id="det-sb" class="det-edge" d="M92 150 L176 214" marker-end="url(#detArrow)"/>
+            <path id="det-ab" class="det-edge" d="M214 86 L214 210" marker-end="url(#detArrow)"/>
+            <path id="det-xy" class="det-edge" d="M422 90 L498 134" marker-end="url(#detArrow)"/>
+            <path id="det-yz" class="det-edge" d="M520 166 L458 214" marker-end="url(#detArrow)"/>
+            <path id="det-zx" class="det-edge" d="M420 216 L410 112" marker-end="url(#detArrow)"/>
+            <text x="124" y="110" fill="#c9c2b1" font-family="Consolas,monospace" font-size="10">+2</text>
+            <text x="120" y="202" fill="#c9c2b1" font-family="Consolas,monospace" font-size="10">+3</text>
+            <text x="224" y="150" fill="#c9c2b1" font-family="Consolas,monospace" font-size="10">−1</text>
+            <text x="458" y="108" fill="#c9c2b1" font-family="Consolas,monospace" font-size="10">−2</text>
+            <text x="494" y="202" fill="#c9c2b1" font-family="Consolas,monospace" font-size="10">−1</text>
+            <text x="370" y="172" fill="#c9c2b1" font-family="Consolas,monospace" font-size="10">−1</text>
+            <g class="det-node" id="det-S"><circle cx="70" cy="150" r="22" class="dn-circle"/><text x="70" y="155" class="dn-label">S</text><text x="70" y="184" class="dn-dist">d = —</text></g>
+            <g class="det-node" id="det-A"><circle cx="214" cy="70" r="22" class="dn-circle"/><text x="214" y="75" class="dn-label">A</text><text x="214" y="106" class="dn-dist">d = —</text></g>
+            <g class="det-node" id="det-B"><circle cx="214" cy="232" r="22" class="dn-circle"/><text x="214" y="237" class="dn-label">B</text><text x="214" y="266" class="dn-dist">d = —</text></g>
+            <g class="det-node" id="det-X"><circle cx="400" cy="70" r="22" class="dn-circle"/><text x="400" y="75" class="dn-label">X</text><text x="400" y="106" class="dn-dist">d = —</text></g>
+            <g class="det-node" id="det-Y"><circle cx="520" cy="150" r="22" class="dn-circle"/><text x="520" y="155" class="dn-label">Y</text><text x="520" y="184" class="dn-dist">d = —</text></g>
+            <g class="det-node" id="det-Z"><circle cx="400" cy="232" r="22" class="dn-circle"/><text x="400" y="237" class="dn-label">Z</text><text x="400" y="266" class="dn-dist">d = —</text></g>
+          </svg>
+        </div>
+        <div class="detector-side">
+          <div><span class="mono">Detector / 两种说法</span><p style="font-size:13px;color:rgba(241,234,219,.72);line-height:1.85;margin-top:6px">左侧 S 只能到达 A、B；右侧 X→Y→Z→X 的总权重是 <b style="color:#ff9d90">−4</b>，是一个负环。</p></div>
+          <div class="det-btn-row">
+            <button class="btn btn-primary" id="detSource" type="button">只从 S 检测</button>
+            <button class="btn" id="detGlobal" type="button">全零初值检测</button>
+            <button class="btn" id="detReset" type="button">重置</button>
+          </div>
+          <p class="det-result" id="detResult" aria-live="polite">选择一种检测方式。左侧是普通 Bellman-Ford 的视角，右侧是全局负环检测的视角。</p>
+          <p class="lab-note" style="color:rgba(241,234,219,.48)">普通 BF 从 S 出发时，X/Y/Z 的距离始终是 ∞，负环不会造成任何松弛；所以它能返回 S 的最短路，却不知道右边有负环。</p>
+        </div>
+      </div>
+      <div class="code reveal" data-reveal style="margin-top:20px" aria-label="全局负环检测代码">
+<span class="c"># 全零初值：等价于加一个指向所有点的超级源</span><br>
+<span class="k">dist</span> = [<span class="n">0</span>] * n<br>
+<span class="k">for</span> _ <span class="k">in</span> <span class="k">range</span>(n):<br>
+&nbsp;&nbsp;changed = <span class="n">False</span><br>
+&nbsp;&nbsp;<span class="k">for</span> u, v, w <span class="k">in</span> edges:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">if</span> dist[u] + w &lt; dist[v]:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dist[v] = dist[u] + w<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;changed = <span class="n">True</span><br>
+&nbsp;&nbsp;<span class="k">if not</span> changed:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">break</span><br>
+<span class="k">else</span>:<br>
+&nbsp;&nbsp;<span class="k">return</span> [] &nbsp; <span class="c"># 第 n 轮仍能更新：全图存在负环</span>
+      </div>
+      <div class="note-box reveal" data-reveal style="margin-top:20px"><h3>本题的判分口径</h3><p>作业要求：<b>只要图中存在负环，就返回空列表</b>，即使负环和源点不连通。因此只从源点跑一遍 BF 不够；要么用上面的全零初值跑一次检测，要么先单独判断全图负环。</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="proof" aria-labelledby="proofTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">04</div>
+        <div><p class="mono">Why it works / 正确性直觉</p><h2 id="proofTitle">多扫一轮，究竟多知道了什么？</h2></div>
+        <p class="sec-lede">把“轮”看成路径长度的预算：第 k 轮结束时，所有不超过 k 条边的最短路都已经就位。n−1 轮之后，简单路径的预算用完了。</p>
+      </header>
+      <div class="proof-grid reveal" data-reveal>
+        <div class="proof-card"><div class="big">01</div><h3>最短路是简单路径</h3><p>如果没有负环，任何带环的路径都可以把环删掉而不会变长。所以一条最短路最多包含 <b>n−1 条边</b>；这是轮数的来源。</p></div>
+        <div class="proof-card"><div class="big">02</div><h3>每轮多推进一条边</h3><p>归纳：第 k−1 轮结束后，所有 ≤k−1 条边的最短路已经确定；第 k 轮扫描到那条“最后一条边”时，就会把 ≤k 条边的答案松弛出来。</p></div>
+        <div class="proof-card"><div class="big">03</div><h3>第 n 轮还在变</h3><p>如果 n−1 轮后仍有一条边可以松弛，说明存在一条更短的、带更多边的路径。它必然重复了某个顶点，于是出现负环。</p></div>
+      </div>
+      <div class="ladder reveal" data-reveal aria-label="轮数与确定的路径边数">
+        <div class="ladder-row"><span class="lb">第 1 轮</span><span class="ladder-bar"><i style="--w:20%"></i></span><span class="lv">≤ 1 条边</span></div>
+        <div class="ladder-row"><span class="lb">第 2 轮</span><span class="ladder-bar"><i style="--w:40%"></i></span><span class="lv">≤ 2 条边</span></div>
+        <div class="ladder-row"><span class="lb">第 3 轮</span><span class="ladder-bar"><i style="--w:60%"></i></span><span class="lv">≤ 3 条边</span></div>
+        <div class="ladder-row"><span class="lb">…</span><span class="ladder-bar"><i style="--w:80%"></i></span><span class="lv">…</span></div>
+        <div class="ladder-row"><span class="lb">第 n−1 轮</span><span class="ladder-bar"><i style="--w:100%"></i></span><span class="lv">≤ n−1 条边</span></div>
+        <div class="ladder-row"><span class="lb" style="color:var(--alarm)">第 n 轮</span><span class="ladder-bar"><i style="--w:100%;background:var(--alarm)"></i></span><span class="lv" style="color:var(--alarm)">只用于检查负环</span></div>
+      </div>
+      <div class="note-box reveal" data-reveal style="margin-top:20px"><h3>一句话记住</h3><p><b>n−1 轮负责“算完”，第 n 轮负责“验货”。</b> 提前停止只是发现已经算完，不会改变最坏复杂度 O(VE)。</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="compare" aria-labelledby="compareTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">05</div>
+        <div><p class="mono">Choose your tool / 对比</p><h2 id="compareTitle">Bellman-Ford 不是 Dijkstra 的替代品</h2></div>
+        <p class="sec-lede">它们解决的是同一类问题，但代价和边界不同。看到负权边，先想到 Bellman-Ford；看到非负权和大图，Dijkstra 通常更快。</p>
+      </header>
+      <div class="compare reveal" data-reveal>
+        <div class="compare-col">
+          <span class="mono">Bellman–Ford</span>
+          <h3>允许负权，<br>还能报负环。</h3>
+          <ul>
+            <li><b>边权</b>：任意实数，可以有负权边。</li>
+            <li><b>负环</b>：能检测；第 n 轮仍更新即存在（注意是否要求全局）。</li>
+            <li><b>数据结构</b>：只需要边表或邻接表，逐边扫描。</li>
+            <li><b>复杂度</b>：O(VE)，适合中小规模或需要负权的图。</li>
+            <li><b>典型场景</b>：汇率套利、差分约束、带负权的路径问题。</li>
+          </ul>
+        </div>
+        <div class="compare-col">
+          <span class="mono">Dijkstra</span>
+          <h3>非负权下，<br>更快地“定稿”。</h3>
+          <ul>
+            <li><b>边权</b>：必须非负；出现负权边时正确性没有保证。</li>
+            <li><b>负环</b>：不处理，也检测不了。</li>
+            <li><b>数据结构</b>：优先队列（堆）；懒删除代替 decreaseKey。</li>
+            <li><b>复杂度</b>：O((V+E) log V)，通常比 BF 快一个量级。</li>
+            <li><b>典型场景</b>：地图导航、网络路由、非负权最短路。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="pitfalls reveal" data-reveal>
+        <div class="pitfall"><b>易错 01 / 只检测源点可达负环</b><p>标准 BF 从 s 出发只能发现 s 能走到的负环。题目若要求“图中存在负环就返回空”，必须用全零初值或超级源做全局检测。</p></div>
+        <div class="pitfall"><b>易错 02 / 把提前停止当成复杂度</b><p>随机图上可能两三轮就收敛，但最坏情况仍是 n−1 轮；复杂度分析要按最坏情况写 O(VE)。</p></div>
+        <div class="pitfall"><b>易错 03 / 用 INF 直接做加法</b><p>在定长整数语言里，INF + 负权可能溢出成很小的数，制造假更新。先判断 dist[u] 是否可达，或用足够大的哨兵值。</p></div>
+        <div class="pitfall"><b>易错 04 / 不记录前驱</b><p>只存距离可以算出长度，却无法还原路径。松弛成功时同步写 prev[v] = u，最后从终点倒推。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="quiz" aria-labelledby="quizTitle">
+    <div class="wrap">
+      <header class="sec-head reveal" data-reveal>
+        <div class="sec-no" aria-hidden="true">06</div>
+        <div><p class="mono">Self check / 自测</p><h2 id="quizTitle">三道题，检查有没有真的看懂</h2></div>
+        <p class="sec-lede">先自己回答，再展开。答案不要求背结论，关键是能说清“为什么”。</p>
+      </header>
+      <div class="quiz reveal" data-reveal>
+        <details><summary><span class="qno">01</span><span>6 个顶点、没有负环，最坏需要几轮松弛？</span></summary><div class="answer"><b>5 轮。</b> 最短路最多有 n−1 = 5 条边；第 k 轮结束时所有 ≤k 条边的最短路已经确定。第 6 轮只用于负环检查。</div></details>
+        <details><summary><span class="qno">02</span><span>第 n 轮仍然有一条边可以松弛，说明什么？</span></summary><div class="answer"><b>存在负环。</b> 如果没有负环，所有最短路径都能在 n−1 轮内确定；第 n 轮还能变短，说明某条路径重复了顶点并且总权重为负。</div></details>
+        <details><summary><span class="qno">03</span><span>负环和源点不连通时，普通 Bellman-Ford 会检测到吗？</span></summary><div class="answer"><b>不会。</b> 从源点出发时，那些点的距离始终是 ∞，负环不会触发任何松弛。题目要求“全图有负环就返回空”时，要用全零初值/超级源再做一次检测。</div></details>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-top">
+      <div class="footer-phrase">松弛<i></i>检查<i></i>收敛</div>
+      <p>Bellman-Ford 的温柔之处，是它不要求每一步都做出最终决定。它只是反复问：这条边还能不能更短？</p>
+    </div>
+    <div class="footer-links" aria-label="相关交互页">
+      <a href="greedy.html">贪心 · 局部最优的赌注</a>
+      <a href="graph-traversal.html">图上行走 · BFS / DFS / 拓扑 / SCC</a>
+      <a href="divide-and-conquer.html">分治 · Divide &amp; Conquer</a>
+    </div>
+    <div class="footer-bottom"><span>BELLMAN–FORD / FIELD NOTE 02</span><span>SINGLE HTML · NO DEPENDENCIES</span><span>REDUCED-MOTION READY</span></div>
+  </div>
+</footer>
+<script>
+(function(){
+  "use strict";
+  const $ = function(sel, root){ return (root || document).querySelector(sel); };
+  const $$ = function(sel, root){ return Array.from((root || document).querySelectorAll(sel)); };
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const fmt = function(n){
+    if (n === Infinity) return "∞";
+    return String(n).replace("-", "−");
+  };
+  const signed = function(n){
+    return n < 0 ? "− " + Math.abs(n) : "+ " + n;
+  };
+  const sumText = function(a, b){
+    if (a === Infinity) return "∞";
+    return fmt(a + b);
+  };
+
+  const progress = $(".progress span");
+  function updateProgress(){
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    progress.parentElement.style.setProperty("--p", p.toFixed(4));
+  }
+  window.addEventListener("scroll", updateProgress, { passive:true });
+  window.addEventListener("resize", updateProgress);
+  updateProgress();
+
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ document.body.classList.add("ready"); }); });
+  const revealEls = $$("[data-reveal]");
+  if (reduceMotion || !("IntersectionObserver" in window)){
+    revealEls.forEach(function(el){ el.classList.add("is-in"); });
+  } else {
+    const obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){ entry.target.classList.add("is-in"); obs.unobserve(entry.target); }
+      });
+    }, { threshold: .1, rootMargin: "0px 0px -5% 0px" });
+    revealEls.forEach(function(el){ obs.observe(el); });
+  }
+
+  /* ---------------- Relaxation lab ---------------- */
+  const labDv = { value: 9 };
+  const weightRange = $("#weightRange");
+  const weightValue = $("#weightValue");
+  const wLabel = $("#wLabel");
+  const dvLabel = $("#dvLabel");
+  const labReadout = $("#labReadout");
+  const relaxBtn = $("#relaxBtn");
+  const relaxReset = $("#relaxReset");
+  function labRender(){
+    const w = Number(weightRange.value);
+    weightValue.textContent = fmt(w);
+    wLabel.textContent = "w = " + fmt(w);
+    dvLabel.textContent = "d[v] = " + fmt(labDv.value);
+    labReadout.innerHTML = "候选值：6 + (" + fmt(w) + ") = <b>" + fmt(6 + w) + "</b>；当前 d[v] = <b>" + fmt(labDv.value) + "</b>。";
+  }
+  weightRange.addEventListener("input", labRender);
+  relaxBtn.addEventListener("click", function(){
+    const w = Number(weightRange.value);
+    const cand = 6 + w;
+    const old = labDv.value;
+    if (cand < labDv.value){
+      labDv.value = cand;
+      labRender();
+      labReadout.innerHTML = "更新：d[v] 从 <b>" + fmt(old) + "</b> 降到 <b>" + fmt(cand) + "</b>，因为 6 + (" + fmt(w) + ") = " + fmt(cand) + " &lt; " + fmt(old) + "。";
+    } else {
+      labRender();
+      labReadout.innerHTML = "不更新：6 + (" + fmt(w) + ") = " + fmt(cand) + "，并不小于当前的 <b>" + fmt(labDv.value) + "</b>。";
+    }
+  });
+  relaxReset.addEventListener("click", function(){
+    labDv.value = 9;
+    weightRange.value = "-4";
+    labRender();
+    labReadout.textContent = "已重置。当前 d[v] = 9；拖动边权，看看 6 + w 是否小于 9。";
+  });
+  labRender();
+
+  /* ---------------- Main Bellman-Ford demo ---------------- */
+  const POS = {
+    A:{x:75,y:235}, B:{x:245,y:105}, C:{x:245,y:365},
+    D:{x:455,y:105}, E:{x:455,y:365}, F:{x:675,y:235}
+  };
+  const BASE_EDGES = [
+    {u:"A",v:"B",w:6,lx:150,ly:154},
+    {u:"A",v:"C",w:7,lx:148,ly:314},
+    {u:"B",v:"C",w:8,lx:256,ly:235},
+    {u:"B",v:"D",w:5,lx:350,ly:88},
+    {u:"B",v:"E",w:-4,lx:386,ly:172,cx:400,cy:190},
+    {u:"C",v:"D",w:-3,lx:308,ly:300,cx:300,cy:288},
+    {u:"C",v:"E",w:9,lx:350,ly:386},
+    {u:"D",v:"E",w:2,lx:468,ly:235},
+    {u:"D",v:"F",w:5,lx:578,ly:158},
+    {u:"E",v:"F",w:-2,lx:578,ly:314},
+    {u:"F",v:"B",w:-3,lx:596,ly:62,cx:700,cy:18}
+  ];
+  const cycleEdges = BASE_EDGES.slice();
+  const exampleData = {
+    base: { edges: BASE_EDGES.slice(0,10), source:"A", target:"F" },
+    cycle: { edges: cycleEdges, source:"A", target:"F" }
+  };
+  const graphSvg = $("#bfGraph");
+  const roundLabel = $("#roundLabel");
+  const edgeLabel = $("#edgeLabel");
+  const updateLabel = $("#updateLabel");
+  const demoMeter = $("#demoMeter");
+  const scanTape = $("#scanTape");
+  const checkFormula = $("#checkFormula");
+  const bfStatus = $("#bfStatus");
+  const distBody = $("#distBody");
+  const bfLog = $("#bfLog");
+  const playBtn = $("#bfPlay");
+  const stepBtn = $("#bfStep");
+  const resetBtn = $("#bfReset");
+  const exampleButtons = $$("[data-example]");
+
+  const state = {
+    example: "base", edges: [], nodes: [], source: "A", target: "F", order: [],
+    round: 1, edgePtr: 0, phase: "relax", dist: {}, prev: {}, changedRound: false,
+    activeEdge: -1, updatedEdge: -1, updatedNode: "", lastCheck: null,
+    log: [], finished: false, playing: false, timer: null, pathNodes: new Set(),
+    pathEdges: new Set(), cycleNodes: new Set(), cycleEdges: new Set(),
+    lastUpdatedNode: "", checkUpdatedNodes: []
+  };
+  let edgeEls = [], nodeEls = {};
+
+  function createSvg(){
+    graphSvg.innerHTML = "";
+    const defs = document.createElementNS(SVG_NS, "defs");
+    const markerData = [
+      ["arrow-default", "#66746c"], ["arrow-current", "#7cd6c4"],
+      ["arrow-updated", "#c96a35"], ["arrow-path", "#9de3b6"], ["arrow-cycle", "#d94b3c"]
+    ];
+    markerData.forEach(function(item){
+      const marker = document.createElementNS(SVG_NS, "marker");
+      marker.setAttribute("id", item[0]);
+      marker.setAttribute("markerWidth", "7");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("refX", "6");
+      marker.setAttribute("refY", "3.5");
+      marker.setAttribute("orient", "auto");
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute("d", "M0,0 L7,3.5 L0,7 Z");
+      path.setAttribute("fill", item[1]);
+      marker.appendChild(path);
+      defs.appendChild(marker);
+    });
+    graphSvg.appendChild(defs);
+    const edgeLayer = document.createElementNS(SVG_NS, "g");
+    edgeLayer.setAttribute("id", "edgeLayer");
+    const nodeLayer = document.createElementNS(SVG_NS, "g");
+    nodeLayer.setAttribute("id", "nodeLayer");
+    graphSvg.appendChild(edgeLayer);
+    graphSvg.appendChild(nodeLayer);
+
+    edgeEls = state.edges.map(function(edge, index){
+      const a = POS[edge.u], b = POS[edge.v];
+      const path = document.createElementNS(SVG_NS, "path");
+      const d = edge.cx != null
+        ? "M" + a.x + " " + a.y + " Q" + edge.cx + " " + edge.cy + " " + b.x + " " + b.y
+        : "M" + a.x + " " + a.y + " L" + b.x + " " + b.y;
+      path.setAttribute("d", d);
+      path.setAttribute("class", "edge-line");
+      path.setAttribute("marker-end", "url(#arrow-default)");
+      edgeLayer.appendChild(path);
+      const label = document.createElementNS(SVG_NS, "text");
+      label.setAttribute("x", edge.lx);
+      label.setAttribute("y", edge.ly);
+      label.setAttribute("class", "edge-label");
+      label.textContent = fmt(edge.w);
+      edgeLayer.appendChild(label);
+      return { path: path, label: label };
+    });
+
+    nodeEls = {};
+    state.nodes.forEach(function(name){
+      const p = POS[name];
+      const g = document.createElementNS(SVG_NS, "g");
+      g.setAttribute("class", "node-group");
+      const circle = document.createElementNS(SVG_NS, "circle");
+      circle.setAttribute("cx", p.x); circle.setAttribute("cy", p.y); circle.setAttribute("r", "23");
+      circle.setAttribute("class", "node-circle");
+      const letter = document.createElementNS(SVG_NS, "text");
+      letter.setAttribute("x", p.x); letter.setAttribute("y", p.y + 1);
+      letter.setAttribute("class", "node-letter"); letter.textContent = name;
+      const pill = document.createElementNS(SVG_NS, "rect");
+      pill.setAttribute("x", p.x - 29); pill.setAttribute("y", p.y + 31);
+      pill.setAttribute("width", "58"); pill.setAttribute("height", "21");
+      pill.setAttribute("rx", "10.5"); pill.setAttribute("class", "node-pill");
+      const dist = document.createElementNS(SVG_NS, "text");
+      dist.setAttribute("x", p.x); dist.setAttribute("y", p.y + 45);
+      dist.setAttribute("class", "node-dist"); dist.textContent = "∞";
+      g.appendChild(circle); g.appendChild(letter); g.appendChild(pill); g.appendChild(dist);
+      graphSvg.querySelector("#nodeLayer").appendChild(g);
+      nodeEls[name] = { group:g, dist:dist };
+    });
+  }
+
+  function setStatus(text){ bfStatus.textContent = text; }
+  function addLog(kind, text){
+    state.log.push({ kind:kind, text:text, round: state.phase === "check" ? "n" : String(state.round) });
+    if (state.log.length > 40) state.log.shift();
+  }
+  function updatePlayButton(){
+    const spans = playBtn.querySelectorAll("span");
+    if (state.playing){ spans[0].textContent = "❚❚"; spans[1].textContent = "暂停"; }
+    else if (state.finished){ spans[0].textContent = "↻"; spans[1].textContent = "重播"; }
+    else { spans[0].textContent = "▶"; spans[1].textContent = "播放"; }
+  }
+  function clearTimer(){
+    if (state.timer !== null){ window.clearTimeout(state.timer); state.timer = null; }
+  }
+  function pause(){
+    state.playing = false;
+    clearTimer();
+    updatePlayButton();
+  }
+  function renderScanTape(){
+    const frag = document.createDocumentFragment();
+    state.order.forEach(function(edgeIndex){
+      const edge = state.edges[edgeIndex];
+      const chip = document.createElement("span");
+      chip.className = "scan-chip";
+      if (edgeIndex === state.activeEdge) chip.classList.add("is-current");
+      if (edgeIndex === state.updatedEdge) chip.classList.add("is-updated");
+      chip.textContent = edge.u + "→" + edge.v;
+      const small = document.createElement("small");
+      small.textContent = fmt(edge.w);
+      chip.appendChild(small);
+      frag.appendChild(chip);
+    });
+    scanTape.replaceChildren(frag);
+  }
+  function renderTable(){
+    const frag = document.createDocumentFragment();
+    state.nodes.forEach(function(name){
+      const tr = document.createElement("tr");
+      if (state.activeEdge >= 0){
+        const e = state.edges[state.activeEdge];
+        if (e && (e.u === name || e.v === name)) tr.classList.add("is-active");
+      }
+      if (state.updatedNode === name) tr.classList.add("is-updated");
+      const td1 = document.createElement("td"); td1.textContent = name;
+      const td2 = document.createElement("td"); td2.textContent = fmt(state.dist[name]);
+      const td3 = document.createElement("td"); td3.textContent = state.prev[name] || "—";
+      tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+      frag.appendChild(tr);
+    });
+    distBody.replaceChildren(frag);
+  }
+  function renderLog(){
+    const frag = document.createDocumentFragment();
+    state.log.slice(-9).forEach(function(item){
+      const li = document.createElement("li");
+      li.className = item.kind === "update" ? "is-update" : (item.kind === "cycle" ? "is-cycle" : "");
+      const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = (item.round === "n" ? "检查" : "R" + item.round);
+      const text = document.createElement("span"); text.textContent = item.text;
+      li.appendChild(tag); li.appendChild(text);
+      frag.appendChild(li);
+    });
+    bfLog.replaceChildren(frag);
+    bfLog.scrollTop = bfLog.scrollHeight;
+  }
+  function renderGraph(){
+    edgeEls.forEach(function(els, index){
+      const e = state.edges[index];
+      const classes = ["edge-line"];
+      let marker = "arrow-default";
+      if (state.cycleEdges.has(index)){ classes.push("is-cycle"); marker = "arrow-cycle"; }
+      else if (state.pathEdges.has(index)){ classes.push("is-path"); marker = "arrow-path"; }
+      else if (index === state.updatedEdge){ classes.push("is-updated"); marker = "arrow-updated"; }
+      else if (index === state.activeEdge){ classes.push("is-current"); marker = "arrow-current"; }
+      els.path.setAttribute("class", classes.join(" "));
+      els.path.setAttribute("marker-end", "url(#" + marker + ")");
+      const labelClasses = ["edge-label"];
+      if (state.cycleEdges.has(index)) labelClasses.push("is-cycle");
+      else if (state.pathEdges.has(index)) labelClasses.push("is-path");
+      else if (index === state.updatedEdge) labelClasses.push("is-updated");
+      else if (index === state.activeEdge) labelClasses.push("is-current");
+      els.label.setAttribute("class", labelClasses.join(" "));
+    });
+    Object.keys(nodeEls).forEach(function(name){
+      const group = nodeEls[name].group;
+      const classes = ["node-group"];
+      if (state.cycleNodes.has(name)) classes.push("is-cycle");
+      else if (state.pathNodes.has(name)) classes.push("is-path");
+      else if (state.updatedNode === name) classes.push("is-updated");
+      if (state.activeEdge >= 0){
+        const e = state.edges[state.activeEdge];
+        if (e && (e.u === name || e.v === name)) classes.push("is-active");
+      }
+      group.setAttribute("class", classes.join(" "));
+      nodeEls[name].dist.textContent = fmt(state.dist[name]);
+    });
+    const active = state.activeEdge >= 0 ? state.edges[state.activeEdge] : null;
+    graphSvg.setAttribute("aria-label", "Bellman-Ford 图演示，当前第 " + state.round + " 轮" + (active ? "，扫描边 " + active.u + " 到 " + active.v : "") + "。距离：" + state.nodes.map(function(n){ return n + " " + fmt(state.dist[n]); }).join("，"));
+  }
+  function render(){
+    const n = state.nodes.length;
+    const maxRounds = Math.max(1, n - 1);
+    if (state.phase === "check" || state.phase === "cycle") roundLabel.textContent = "第 n 轮 · 负环检查";
+    else if (state.phase === "done") roundLabel.textContent = "已收敛 · 共 " + state.round + " 轮";
+    else roundLabel.textContent = "第 " + Math.min(state.round, maxRounds) + " / " + maxRounds + " 轮";
+    const shownEdge = state.edgePtr >= state.order.length ? state.order.length : state.edgePtr + 1;
+    edgeLabel.textContent = state.phase === "check" ? "检查边 " + shownEdge + " / " + state.order.length : "边 " + shownEdge + " / " + state.order.length;
+    updateLabel.textContent = state.changedRound ? "本轮已有更新" : "本轮尚未发现更新";
+    const totalSteps = (maxRounds + 1) * state.order.length;
+    const doneSteps = (state.phase === "check" ? maxRounds : Math.max(0, state.round - 1)) * state.order.length + state.edgePtr;
+    demoMeter.style.setProperty("--p", Math.min(1, doneSteps / totalSteps).toFixed(4));
+    renderScanTape();
+    renderGraph();
+    renderTable();
+    renderLog();
+    if (state.lastCheck){
+      const c = state.lastCheck;
+      checkFormula.innerHTML = "d[" + c.v + "] = min(" + fmt(c.old) + ", " + fmt(c.du) + " + (" + fmt(c.w) + "))<br>= min(" + fmt(c.old) + ", " + fmt(c.cand) + ") → <span class=\"" + (c.updated ? "yes" : "no") + "\">" + (c.updated ? "更新为 " + fmt(c.cand) : "保持不变") + "</span>";
+    } else {
+      checkFormula.textContent = "等待第一步。";
+    }
+    updatePlayButton();
+  }
+
+  function resetDemo(){
+    pause();
+    const data = exampleData[state.example];
+    state.edges = data.edges.map(function(e){ return Object.assign({}, e); });
+    state.nodes = ["A","B","C","D","E","F"];
+    state.source = data.source;
+    state.target = data.target;
+    state.order = state.edges.map(function(_, i){ return i; }).reverse();
+    state.round = 1;
+    state.edgePtr = 0;
+    state.phase = "relax";
+    state.dist = {};
+    state.prev = {};
+    state.nodes.forEach(function(n){ state.dist[n] = Infinity; state.prev[n] = null; });
+    state.dist[state.source] = 0;
+    state.changedRound = false;
+    state.activeEdge = -1;
+    state.updatedEdge = -1;
+    state.updatedNode = "";
+    state.lastCheck = null;
+    state.lastUpdatedNode = "";
+    state.checkUpdatedNodes = [];
+    state.log = [];
+    state.finished = false;
+    state.pathNodes = new Set();
+    state.pathEdges = new Set();
+    state.cycleNodes = new Set();
+    state.cycleEdges = new Set();
+    createSvg();
+    setStatus("源点 " + state.source + " 的距离为 0，其余为 ∞。按固定顺序扫描 " + state.order.length + " 条边，准备开始第 1 轮。");
+    addLog("info", "初始化：d[" + state.source + "] = 0，其余为 ∞。");
+    render();
+  }
+
+  function getPath(){
+    const path = [];
+    const seen = new Set();
+    let node = state.target;
+    while (node != null && !seen.has(node)){
+      seen.add(node);
+      path.push(node);
+      if (node === state.source) break;
+      node = state.prev[node];
+    }
+    if (path[path.length - 1] !== state.source) return null;
+    path.reverse();
+    return path;
+  }
+  function findNegativeCycle(){
+    const n = state.nodes.length;
+    const starts = state.checkUpdatedNodes.length ? state.checkUpdatedNodes.slice() : [state.lastUpdatedNode];
+    for (let s = 0; s < starts.length; s++){
+      let x = starts[s];
+      let ok = true;
+      for (let i = 0; i < n; i++){
+        if (x == null || state.prev[x] == null){ ok = false; break; }
+        x = state.prev[x];
+      }
+      if (!ok) continue;
+      const seen = new Map();
+      const path = [];
+      while (x != null && !seen.has(x)){
+        seen.set(x, path.length);
+        path.push(x);
+        x = state.prev[x];
+      }
+      if (x == null) continue;
+      let cycle = path.slice(seen.get(x));
+      cycle.reverse();
+      if (cycle.length === 0) continue;
+      let valid = true;
+      for (let i = 0; i < cycle.length; i++){
+        const u = cycle[i], v = cycle[(i + 1) % cycle.length];
+        if (!state.edges.some(function(e){ return e.u === u && e.v === v; })){ valid = false; break; }
+      }
+      if (valid) return cycle;
+    }
+    return null;
+  }
+  function finish(kind){
+    const lastScanned = state.edgePtr > 0 ? state.order[state.edgePtr - 1] : -1;
+    state.finished = true;
+    state.playing = false;
+    clearTimer();
+    state.activeEdge = -1;
+    state.updatedEdge = -1;
+    state.updatedNode = "";
+    state.phase = kind === "cycle" ? "cycle" : "done";
+    if (kind === "cycle"){
+      const cycle = findNegativeCycle();
+      if (cycle && cycle.length){
+        state.cycleNodes = new Set(cycle);
+        state.cycleEdges = new Set();
+        for (let i = 0; i < cycle.length; i++){
+          const u = cycle[i], v = cycle[(i + 1) % cycle.length];
+          const idx = state.edges.findIndex(function(e){ return e.u === u && e.v === v; });
+          if (idx >= 0) state.cycleEdges.add(idx);
+        }
+        addLog("cycle", "第 n 轮仍能更新 → 负环 " + cycle.join(" → ") + " → " + cycle[0] + "。");
+        setStatus("第 n 轮仍在更新：存在从 " + state.source + " 可达的负环 " + cycle.join(" → ") + " → " + cycle[0] + "。最短路没有有限下界，应返回空路径。");
+      } else {
+        if (lastScanned >= 0) state.cycleEdges.add(lastScanned);
+        addLog("cycle", "第 n 轮仍能更新 → 存在可达负环。");
+        setStatus("第 n 轮仍在更新：存在从 " + state.source + " 可达的负环。最短路没有有限下界，应返回空路径。");
+      }
+    } else {
+      const path = getPath();
+      if (path){
+        state.pathNodes = new Set(path);
+        state.pathEdges = new Set();
+        for (let i = 0; i + 1 < path.length; i++){
+          const idx = state.edges.findIndex(function(e){ return e.u === path[i] && e.v === path[i+1]; });
+          if (idx >= 0) state.pathEdges.add(idx);
+        }
+        const cost = path.reduce(function(total, node, i){
+          if (i === 0) return total;
+          const e = state.edges.find(function(edge){ return edge.u === path[i-1] && edge.v === node; });
+          return total + (e ? e.w : 0);
+        }, 0);
+        addLog("info", "最短路 " + path.join(" → ") + "，总权重 " + fmt(cost) + "。");
+        setStatus((kind === "clean" ? "第 n 轮没有更新：不存在从 " + state.source + " 可达的负环。" : "本轮没有更新，算法提前收敛。最坏情况仍需 n−1 轮。") + " 最短路 " + path.join(" → ") + "，总权重 " + fmt(cost) + "。");
+      } else {
+        setStatus((kind === "clean" ? "第 n 轮没有更新：不存在从 " + state.source + " 可达的负环。" : "本轮没有更新，算法提前收敛。") + " 目标 " + state.target + " 不可达。");
+      }
+    }
+    render();
+  }
+
+  function endRound(){
+    const n = state.nodes.length;
+    if (state.phase === "relax"){
+      if (!state.changedRound){
+        addLog("info", "第 " + state.round + " 轮无更新：收敛。");
+        finish("converged");
+        return;
+      }
+      if (state.round >= n - 1){
+        state.phase = "check";
+        state.round = n;
+        state.edgePtr = 0;
+        state.changedRound = false;
+        state.activeEdge = -1;
+        state.updatedEdge = -1;
+        state.updatedNode = "";
+        state.lastCheck = null;
+        state.checkUpdatedNodes = [];
+        addLog("info", "第 n−1 轮结束；进入第 n 轮负环检查。");
+        setStatus("第 " + n + " 轮 = 负环检查轮：再扫一遍所有边。如果仍有松弛，说明存在从 " + state.source + " 可达的负环。");
+      } else {
+        state.round += 1;
+        state.edgePtr = 0;
+        state.changedRound = false;
+        state.activeEdge = -1;
+        state.updatedEdge = -1;
+        state.updatedNode = "";
+        state.lastCheck = null;
+        addLog("info", "第 " + (state.round - 1) + " 轮结束：有更新，进入下一轮。");
+        setStatus("第 " + (state.round - 1) + " 轮有更新，进入第 " + state.round + " 轮。");
+      }
+    } else {
+      if (state.changedRound){
+        finish("cycle");
+      } else {
+        finish("clean");
+      }
+    }
+  }
+
+  function doStep(){
+    if (state.finished){ pause(); return; }
+    if (state.edgePtr >= state.order.length){ endRound(); render(); return; }
+    const idx = state.order[state.edgePtr];
+    const edge = state.edges[idx];
+    const du = state.dist[edge.u];
+    const old = state.dist[edge.v];
+    const cand = du === Infinity ? Infinity : du + edge.w;
+    let updated = false;
+    state.activeEdge = idx;
+    if (cand < old){
+      state.dist[edge.v] = cand;
+      state.prev[edge.v] = edge.u;
+      updated = true;
+      state.changedRound = true;
+      state.updatedEdge = idx;
+      state.updatedNode = edge.v;
+      state.lastUpdatedNode = edge.v;
+      if (state.phase === "check") state.checkUpdatedNodes.push(edge.v);
+      addLog("update", "d[" + edge.v + "] ← " + fmt(cand) + "（d[" + edge.u + "]=" + fmt(du) + "，w=" + fmt(edge.w) + "）");
+      setStatus("第 " + (state.phase === "check" ? "n" : state.round) + " 轮 · 松弛 " + edge.u + "→" + edge.v + "：d[" + edge.v + "] 从 " + fmt(old) + " 降到 " + fmt(cand) + "。");
+    } else {
+      state.updatedEdge = -1;
+      state.updatedNode = "";
+      addLog("check", "检查 " + edge.u + "→" + edge.v + "：" + sumText(du, edge.w) + " ≥ " + fmt(old) + "，不更新。");
+      setStatus("第 " + (state.phase === "check" ? "n" : state.round) + " 轮 · 检查 " + edge.u + "→" + edge.v + "：不更新。");
+    }
+    state.lastCheck = { u:edge.u, v:edge.v, w:edge.w, du:du, old:old, cand:cand, updated:updated };
+    state.edgePtr += 1;
+    if (state.edgePtr >= state.order.length){
+      endRound();
+    }
+    render();
+  }
+
+  function play(){
+    if (state.playing){ pause(); return; }
+    if (state.finished){ resetDemo(); }
+    state.playing = true;
+    updatePlayButton();
+    const tick = function(){
+      if (!state.playing) return;
+      doStep();
+      if (state.playing && !state.finished){
+        state.timer = window.setTimeout(tick, reduceMotion ? 160 : 620);
+      } else {
+        state.playing = false;
+        updatePlayButton();
+      }
+    };
+    state.timer = window.setTimeout(tick, 80);
+  }
+
+  exampleButtons.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      exampleButtons.forEach(function(b){ b.classList.toggle("is-active", b === btn); b.setAttribute("aria-pressed", b === btn ? "true" : "false"); });
+      state.example = btn.getAttribute("data-example");
+      resetDemo();
+    });
+  });
+  playBtn.addEventListener("click", play);
+  stepBtn.addEventListener("click", function(){ pause(); doStep(); });
+  resetBtn.addEventListener("click", resetDemo);
+  resetDemo();
+
+  /* ---------------- Negative cycle detector ---------------- */
+  const detResult = $("#detResult");
+  const detSourceNodes = ["S","A","B"];
+  const detCycleNodes = ["X","Y","Z"];
+  function detClear(){
+    $$(".det-node").forEach(function(el){ el.classList.remove("is-reached","is-cycle"); });
+    $$(".det-edge").forEach(function(el){ el.classList.remove("is-reached","is-cycle"); });
+    $$(".det-node .dn-dist").forEach(function(el){ el.textContent = "d = —"; });
+  }
+  function detSet(id, text){ const el = document.querySelector("#det-" + id + " .dn-dist"); if (el) el.textContent = text; }
+  document.getElementById("detSource").addEventListener("click", function(){
+    detClear();
+    detSourceNodes.forEach(function(id){ document.getElementById("det-" + id).classList.add("is-reached"); });
+    detSet("S", "d = 0"); detSet("A", "d = 2"); detSet("B", "d = 1");
+    ["det-sa","det-sb","det-ab"].forEach(function(id){ document.getElementById(id).classList.add("is-reached"); });
+    detResult.innerHTML = "<span class=\"bad\">从 S 出发：未发现负环。</span> 普通 BF 只关心 S 能到达的 S/A/B；X/Y/Z 的距离始终是 ∞，所以右侧负环不会被检查到。若题目要求全图检测，这个答案不完整。";
+  });
+  document.getElementById("detGlobal").addEventListener("click", function(){
+    detClear();
+    detSourceNodes.forEach(function(id){ document.getElementById("det-" + id).classList.add("is-reached"); });
+    detCycleNodes.forEach(function(id){ document.getElementById("det-" + id).classList.add("is-cycle"); });
+    ["det-sa","det-sb","det-ab"].forEach(function(id){ document.getElementById(id).classList.add("is-reached"); });
+    ["det-xy","det-yz","det-zx"].forEach(function(id){ document.getElementById(id).classList.add("is-cycle"); });
+    detSet("S", "0"); detSet("A", "2"); detSet("B", "1"); detSet("X", "0"); detSet("Y", "−2"); detSet("Z", "−3");
+    detResult.innerHTML = "<span class=\"good\">全零初值：第 n 轮仍然可以松弛。</span> 检测到全局负环 X → Y → Z → X（总权重 −4）。按本题要求，此时应返回空列表 <b>[]</b>，即使 S 到不了它。";
+  });
+  document.getElementById("detReset").addEventListener("click", function(){
+    detClear();
+    detResult.textContent = "选择一种检测方式。左侧是普通 Bellman-Ford 的视角，右侧是全局负环检测的视角。";
+  });
+})();
+</script>
+</body>
+</html>
