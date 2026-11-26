@@ -17,9 +17,12 @@ Exit status is 0 only when every test that ran passed.
 from __future__ import annotations
 
 import argparse
+import importlib
 import inspect
 import json
 import os
+import pickle
+import re
 import sys
 import time as _time
 import traceback
@@ -41,9 +44,15 @@ import pickle
 import tqdm
 import scipy
 import math
+import string
 import matplotlib.pyplot as plt
 import numpy.random as random
+import random
 import networkx as nx
+try:
+    import pylev
+except ImportError:
+    pylev = None
 """
 
 
@@ -78,16 +87,36 @@ def build_namespace(path, nb, skip_substr=()):
     """Exec the notebook's code cells top to bottom, minus the otter/pip ones."""
     ns = {"__name__": "__main__"}
     exec(compile(PRELUDE, "<prelude>", "exec"), ns)
-    ran, skipped = [], []
+    ran, skipped, checks = [], [], {}
     # otter executes notebooks with the notebook's folder as the working directory;
     # do the same so cells that open relative data files (e.g. generated_testcases.pkl) work.
+    folder = os.path.dirname(os.path.abspath(path))
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
     previous_cwd = os.getcwd()
-    os.chdir(os.path.dirname(os.path.abspath(path)))
+    os.chdir(folder)
     try:
+        # Restore helpers that live in the skipped import cell of some assignments.
+        fixture = os.path.join(folder, "public_data.pkl")
+        if os.path.isfile(fixture):
+            with open(fixture, "rb") as f:
+                ns["test_data"] = pickle.load(f)
+        if os.path.isfile(os.path.join(folder, "autograder_utils.py")):
+            utils = importlib.import_module("autograder_utils")
+            for name in ("validate_tour", "handle_timeout", "profile"):
+                if hasattr(utils, name):
+                    ns[name] = getattr(utils, name)
+        if any("time.time()" in "".join(c.get("source", [])) for c in nb["cells"]):
+            ns["time"] = _time
+
         for i, cell in enumerate(nb["cells"]):
             if cell.get("cell_type") != "code":
                 continue
             src = "".join(cell.get("source", []))
+            for name in re.findall(r'grader\.check\(\s*["\']([^"\']+)["\']\s*\)', src):
+                # Capture the namespace at the check, not after later cells rewrote
+                # the same variable (edit-dist reuses `ans` for sc2..sc6).
+                checks[name] = dict(ns)
             if any(m in src for m in SKIP_MARKERS) or any(m in src for m in skip_substr):
                 skipped.append(i)
                 continue
@@ -97,7 +126,7 @@ def build_namespace(path, nb, skip_substr=()):
         os.chdir(previous_cwd)
     if "rng_seed" not in ns:
         ns["rng_seed"] = 0
-    return ns, ran, skipped
+    return ns, ran, skipped, checks
 
 
 def run_tests(path, only=None, skip_substr=(), verbose=True):
@@ -106,7 +135,7 @@ def run_tests(path, only=None, skip_substr=(), verbose=True):
     if not tests:
         raise SystemExit(f"{path}: no embedded otter tests found in metadata")
 
-    ns, ran, skipped = build_namespace(path, nb, skip_substr)
+    ns, ran, skipped, checks = build_namespace(path, nb, skip_substr)
     if verbose:
         print(f"{path}: ran code cells {ran}")
         print(f"{path}: skipped code cells {skipped}")
@@ -118,9 +147,12 @@ def run_tests(path, only=None, skip_substr=(), verbose=True):
         tns = {}
         exec(compile(without_otter(src), f"<test {name}>", "exec"), tns)
         fn = next(v for k, v in tns.items() if k.startswith("test_"))
+        snapshot = checks.get(name, ns)
         kwargs = {}
         for param in inspect.signature(fn).parameters:
-            if param in ns:
+            if param in snapshot:
+                kwargs[param] = snapshot[param]
+            elif param in ns:
                 kwargs[param] = ns[param]
             elif param in tns:
                 kwargs[param] = tns[param]

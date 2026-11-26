@@ -8,7 +8,9 @@ homework/
 │   ├── 快速傅里叶变换与多项式乘法.zip
 │   ├── 最近点对.zip
 │   ├── dfs-scc.zip
-│   └── shortest-paths.zip
+│   ├── shortest-paths.zip
+│   ├── dp-tsp.zip
+│   └── edit-dist.zip
 ├── 答案/                          ← 解压后的答题文件（已填好）
 │   ├── 快速傅里叶变换与多项式乘法/
 │   │   ├── fft.ipynb
@@ -23,8 +25,19 @@ homework/
 │   │   ├── generated_testcases.pkl  ← 评分用的测试数据，不能删
 │   │   ├── requirements.txt
 │   │   └── .OTTER_LOG
-│   └── shortest-paths/
-│       ├── shortest-paths.ipynb
+│   ├── shortest-paths/
+│   │   ├── shortest-paths.ipynb
+│   │   ├── requirements.txt
+│   │   └── .OTTER_LOG
+│   ├── dp-tsp/
+│   │   ├── dp-tsp.ipynb
+│   │   ├── autograder_utils.py
+│   │   ├── public_data.pkl          ← 评分用的测试数据，不能删
+│   │   ├── requirements.txt
+│   │   └── .OTTER_LOG
+│   └── edit-dist/
+│       ├── edit-dist.ipynb
+│       ├── inputs1.py
 │       ├── requirements.txt
 │       └── .OTTER_LOG
 ├── 互评/                          ← 互评收到的他人提交（含解压副本）
@@ -38,6 +51,8 @@ homework/
 │   ├── closest-pair_2026_10_12T15_48_56_153532.zip     ← otter 官方导出
 │   ├── dfs-scc_2026_10_26T09_04_10_654028.zip          ← otter 官方导出
 │   ├── shortest-paths_2026_10_26T09_04_21_523496.zip   ← otter 官方导出
+│   ├── dp-tsp_2026_11_24T13_18_37_403270.zip           ← otter 官方导出
+│   ├── edit-dist_2026_11_24T13_17_22_048038.zip        ← otter 官方导出
 │   └── 备用_手工打包/                                   ← 早期手工备用包
 ├── .venv38/                       ← Python 3.8 环境（很大，勿手动改）
 └── tools/                         ← 辅助脚本，不属于作业内容，不用提交
@@ -45,6 +60,7 @@ homework/
     ├── run_otter_tests.py         本地复现 notebook 里嵌的评分测试（通用）
     ├── fill_solutions.py          10-12 作业填代码的记录（幂等）
     ├── fill_solutions_dfs_sp.py   10-26 DFS/SCC 与最短路填代码的记录（幂等）
+    ├── fill_solutions_dp_edit.py  11-09 TSP 与编辑距离填代码的记录（幂等）
     └── reorganize.py              整理目录用的一次性脚本
 ```
 
@@ -70,7 +86,7 @@ homework/
 |---|---|
 | 解释器 | `C:\Users\Shero_Wang\AppData\Local\Programs\Python\Python38\python.exe` |
 | 虚拟环境 | `homework\.venv38`（已 gitignore，不提交） |
-| 关键包 | otter-grader 4.4.1、ipython 8.12.3、numpy 1.24.4、scipy 1.10.1、matplotlib 3.7.5、networkx 3.1、ipykernel 6.29.5 |
+| 关键包 | otter-grader 5.7.1（dp-tsp 要求 ≥5.5.1；edit-dist 的 requirements 仍锁 4.4.1）、ipython 8.12.3、numpy 1.24.4、scipy 1.10.1、matplotlib 3.7.5、networkx 3.1、pylev 1.4.0、ipykernel 6.29.5 |
 | 内核 | venv **内部**自带 `python3` kernelspec（`.venv38\share\jupyter\kernels\python3`），没有污染全局 Jupyter 配置 |
 
 **切换 Python 版本**：Windows 的 `py` 启动器现在同时认得两个版本——
@@ -96,7 +112,12 @@ cd C:/Users/Shero_Wang/Desktop/homework
 .venv38/Scripts/python.exe tools/otter_export.py "答案/最近点对/closest-pair.ipynb"
 .venv38/Scripts/python.exe tools/otter_export.py "答案/dfs-scc/dfs-scc.ipynb"
 .venv38/Scripts/python.exe tools/otter_export.py "答案/shortest-paths/shortest-paths.ipynb"
+.venv38/Scripts/python.exe tools/otter_export.py "答案/dp-tsp/dp-tsp.ipynb"
+.venv38/Scripts/python.exe tools/otter_export.py "答案/edit-dist/edit-dist.ipynb"
 ```
+
+> `dp-tsp` 需要 otter ≥ 5.5.1，而 `edit-dist` 的 requirements 仍锁 4.4.1；
+> 运行 edit-dist 的 pip 单元格会降级 otter，重新导出 dp-tsp 前先升级即可。
 
 脚本会自动切到该作业目录、并把 pip 指向阿里云镜像（notebook 前几格要跑
 `pip install -r requirements.txt`，不换镜像会卡在 pypi.org 上导致执行失败）。
@@ -111,9 +132,11 @@ cd C:/Users/Shero_Wang/Desktop/homework
 .venv38/Scripts/python.exe tools/run_otter_tests.py --list "答案/dfs-scc/dfs-scc.ipynb"   # 有哪些测试、多少分
 .venv38/Scripts/python.exe tools/run_otter_tests.py --dump "答案/shortest-paths/shortest-paths.ipynb"  # 打印测试源码 = 评分标准
 .venv38/Scripts/python.exe tools/run_otter_tests.py "答案/dfs-scc/dfs-scc.ipynb"          # 全跑，退出码 0 = 全过
+.venv38/Scripts/python.exe tools/run_otter_tests.py "答案/dp-tsp/dp-tsp.ipynb"
+.venv38/Scripts/python.exe tools/run_otter_tests.py "答案/edit-dist/edit-dist.ipynb"
 ```
 
-当前状态（2026-10-26，otter 官方导出结果）：
+当前状态（2026-11-24，otter 官方导出结果）：
 
 | 作业 | 测试 | 结果 |
 |---|---|---|
@@ -121,6 +144,8 @@ cd C:/Users/Shero_Wang/Desktop/homework
 | 最近点对 | q1 / q2 / q6 | 3/3 通过 |
 | 深度优先搜索与强连通分量 | q1.1 / q1.2 / q2.1 / q2.2 | 4/4 通过 |
 | Dijkstra 与 Bellman-Ford | q1 / q2 | 2/2 通过 |
+| 动态规划（旅行商问题） | TSP | 1/1 通过 |
+| 动态规划（编辑距离） | edit_distance / sc1–sc6 | 7/7 通过（含选做） |
 
 ## 在 VS Code 里打开
 
