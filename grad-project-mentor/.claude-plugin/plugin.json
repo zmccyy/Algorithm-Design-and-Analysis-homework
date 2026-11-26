@@ -1,0 +1,19 @@
+{
+  "name": "grad-project-mentor",
+  "version": "1.0.0",
+  "description": "嵌入式本科毕设导师：五阶段验收关卡、进度台账、防糊弄追问、风险分级、答辩演练；含选题/开题/论文/答辩PPT/答辩问答五个子技能。",
+  "author": {
+    "name": "FirmwareSmith"
+  },
+  "homepage": "https://github.com/zmccyy/-/tree/main/grad-project-mentor",
+  "repository": "https://github.com/zmccyy/-",
+  "license": "MIT",
+  "keywords": [
+    "graduation-project",
+    "embedded",
+    "thesis",
+    "defense",
+    "mentor",
+    "毕设"
+  ]
+}

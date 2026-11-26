@@ -1,0 +1,14 @@
+{
+  "name": "grad-project-mentor-pack",
+  "description": "跨平台毕设导师技能包：Claude Code 与 Codex 共用同一套 Agent Skills。",
+  "owner": {
+    "name": "zmccyy"
+  },
+  "plugins": [
+    {
+      "name": "grad-project-mentor",
+      "source": "./grad-project-mentor",
+      "description": "嵌入式本科毕设导师：五阶段验收关卡、进度台账、防糊弄追问、风险分级、答辩演练；含选题/开题/论文/答辩PPT/答辩问答五个子技能。"
+    }
+  ]
+}
