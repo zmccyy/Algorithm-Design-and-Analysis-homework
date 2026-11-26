@@ -18,14 +18,14 @@
 ### Claude Code（推荐：作为插件市场安装）
 
 ```bash
-claude plugin marketplace add zmccyy/-
+claude plugin marketplace add zmccyy/Algorithm-Design-and-Analysis-homework
 claude plugin install grad-project-mentor@grad-project-mentor-pack
 ```
 
 或在会话内：
 
 ```text
-/plugin marketplace add zmccyy/-
+/plugin marketplace add zmccyy/Algorithm-Design-and-Analysis-homework
 /plugin install grad-project-mentor@grad-project-mentor-pack
 ```
 
